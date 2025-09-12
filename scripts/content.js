@@ -10,7 +10,7 @@ function getBaseURL() {
 
 async function getCourseInformation() {
     try {
-        if (window.location.href.includes('/d2l/')){ // check if url contains /d2l/ to prevent unnecessary requests
+        if (window.location.href.includes('/d2l/')){
             let baseURL = getBaseURL();
                 const response = await fetch(baseURL + "/d2l/api/lp/1.43/enrollments/myenrollments/");
                 if (!response.ok) {
