@@ -1,7 +1,4 @@
-console.log('Content script loaded');
-
 window.addEventListener("load", function() {
-    //getBrightspaceCourses();
     getCourseContent();
 }, false); 
 
@@ -43,26 +40,20 @@ async function getBrightspaceCourses() {
         let coursesURL = baseURL + "/d2l/api/lp/1.43/enrollments/myenrollments/"
         const allCourses = await getBrightspaceData(coursesURL);
         const courses = allCourses.filter(isValidCourse);
-
-        console.log(courses);
         return courses;
-        
     } catch (error) {
         console.error("Error fetching JSON:", error);
     }
 }
 
 // gets the course ID of the given courses
-async function getCourseIDs(courses) {
-    const ids = [];
+async function getCourseIds(courses) {
+    let courseIds = ""
     courses.forEach(function(course) {
-        ids.push(getCourseID(course));
+        courseIds += course.OrgUnit.Id + ",";
     });
-    return ids;
-}
-
-function getCourseID(courseData) {
-    return courseData.OrgUnit.Id;
+    courseIds = courseIds.slice(0, -1);
+    return courseIds;
 }
 
 // gets the content section of the courses
@@ -71,10 +62,7 @@ async function getCourseContent () {
     try {
         let baseURL = getBaseURL();
         const courses = await getBrightspaceCourses();
-        const courseIds = await getCourseIDs(courses);
-        const courseId = courseIds[0]; // for testing, just get the first course
-
-        const courseIdsCSV = courseIds.join(','); // joins the Ids into a CSV for the URL
+        const courseIdsCSV = await getCourseIds(courses);
 
         let assignmentURL = baseURL + "/d2l/api/le/1.67/content/myItems/?startDateTime=null&endDateTime=null&orgUnitIdsCSV=" + courseIdsCSV;
         
@@ -86,5 +74,7 @@ async function getCourseContent () {
     } catch (error) {
         console.error("Error: ", error);
     }
+
+    // 
 
 }
