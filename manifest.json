@@ -21,7 +21,6 @@
     }
   ],
   "action": {
-    "default_popup": "/html/popup.html",
     "default_icon": "/images/notebook.png"
   },
   "side_panel": {
