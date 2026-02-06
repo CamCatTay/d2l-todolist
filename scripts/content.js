@@ -8,13 +8,40 @@ function getMondayOfCurrentWeek(date) {
     return new Date(date.setDate(difference));
 }
 
-function initializeGUI() {
+function createAssignmentElement(assignment, course) { // passing entire course for now may only need the name though
+    const assignmentContainer = document.createElement("a");
+    assignmentContainer.id = "course-assignment-container";
+
+    const assignmentName = document.createElement("div");
+    assignmentName.textContent = assignment.name;
+    assignmentContainer.appendChild(assignmentName);
+
+    // holds the span elements for assignment data
+    const assignmentDataContainer = document.createElement("div");
+    assignmentContainer.appendChild(assignmentDataContainer);
+
+    const timeDue = document.createElement("span");
+    timeDue.id = "timeDue";
+    timeDue.textContent = assignment.dueDate; // PLACEHOLDER: this should be time due not entire due date
+    assignmentDataContainer.appendChild(timeDue);
+
+    const courseName = document.createElement("span");
+    courseName.id = "course-name";
+    courseName.textContent = course.name;
+    assignmentDataContainer.appendChild(courseName);
+
+    console.log("Created assignment element for:", assignment.name);
+    return assignmentContainer;
+}
+
+function initializeGUI(courseData) {
     const calendarContainer = document.getElementById("calendar-container");
 
     const currentDate = new Date();
     const mondayDate = getMondayOfCurrentWeek(new Date(currentDate));
     console.log("Monday of current week:", mondayDate);
 
+    /* // test insert element functions
     const div = document.createElement("div");
     div.textContent = "base element";
     calendarContainer.appendChild(div);
@@ -26,6 +53,17 @@ function initializeGUI() {
     const div3 = document.createElement("div");
     div3.textContent = "im after the base element";
     calendarContainer.appendChild(div3, div);
+    */
+
+    const testAssignment = createAssignmentElement(
+        {name: "Test Assignment", dueDate: "2024-06-30 23:59" },
+        {name: "Test Course"}
+    )
+
+    if (calendarContainer) {
+        calendarContainer.appendChild(testAssignment);
+    }
+    
 }
 
 function updateGUI(courseData) {
@@ -42,7 +80,8 @@ window.addEventListener("load", () => {
     const dateContainerMap = new Map(); // {date, dateContainer}
 
     // initialize GUI
-    initializeGUI();
+    initializeGUI(courseData);
+    
 
     // fetch new data first in case it is faster than storage retrieval
     // fetch  course data and update storage
