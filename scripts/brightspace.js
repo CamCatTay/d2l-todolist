@@ -115,16 +115,16 @@ export async function getCourseContent(tabUrl) {
     startDate.setDate(startDate.getDate() - 1); // Subtract 1 day from the start date
     endDate.setDate(endDate.getDate() + 1); // Add 1 day to the end date
 
-    const nonGradedItemsUrl = baseURL + 
-    "/d2l/api/le/1.67/content/myItems/?startDateTime=null&endDateTime=null&orgUnitIdsCSV=" + 
+    const nonGradedItemsUrl = baseURL +
+    "/d2l/api/le/1.67/content/myItems/?startDateTime=null&endDateTime=null&orgUnitIdsCSV=" +
     courseIdsCSV;
 
-    const gradedItemsUrl = baseURL + 
-    "/d2l/api/le/1.67/content/myItems/?startDateTime=" + 
-    startDate + 
+    const gradedItemsUrl = baseURL +
+    "/d2l/api/le/1.67/content/myItems/?startDateTime=" +
+    startDate +
     "&endDateTime=" +
-    endDate + 
-    "&orgUnitIdsCSV=" + 
+    endDate +
+    "&orgUnitIdsCSV=" +
     courseIdsCSV;
 
     const gradedItems = await getBrightspaceData(gradedItemsUrl);
@@ -132,7 +132,7 @@ export async function getCourseContent(tabUrl) {
     nonGradedItems = nonGradedItems.filter(function(item) {
         return item.ActivityType === 1;
     });
-    
+
     const courseItems = gradedItems.concat(nonGradedItems);
     const courseMap = await mapData(allCourses, courseItems);
 
@@ -150,9 +150,9 @@ export async function mapData(courses, items) {
             courseData.HomeUrl
         );
         courseMap.set(course.id, course);
-        
+
     });
-    
+
     // Iterate through items and convert them into Item objects
     items.forEach(itemData => {
         const item = new Item(
@@ -160,11 +160,11 @@ export async function mapData(courses, items) {
             itemData.ItemName,
             itemData.ItemUrl,
             itemData.DueDate,
-            itemData.Completed || false // implement persistence later
+            !!itemData.DateCompleted // Item is completed if DateCompleted exists
         );
 
         const course = courseMap.get(parseInt(itemData.OrgUnitId, 10));
-        
+
         // Add the item to the appropriate course map
         if (course) {
             switch (itemData.ActivityType) {
@@ -180,7 +180,7 @@ export async function mapData(courses, items) {
                 case 5: // DiscussionForum
                     course.addDiscussion(item);
                     break;
-                case 10: // Checklist 
+                case 10: // Checklist
                     course.addChecklist(item);
                     break;
                 default:
