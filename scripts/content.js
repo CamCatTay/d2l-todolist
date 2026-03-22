@@ -11,6 +11,7 @@ function getMondayOfCurrentWeek(date) {
 function createAssignmentElement(assignment, course) { // passing entire course for now may only need the name though
     const assignmentContainer = document.createElement("a");
     assignmentContainer.id = "course-assignment-container";
+    assignmentContainer.style.cursor = "pointer";
 
     const assignmentName = document.createElement("div");
     assignmentName.textContent = assignment.name;
@@ -29,6 +30,12 @@ function createAssignmentElement(assignment, course) { // passing entire course 
     courseName.id = "course-name";
     courseName.textContent = course.name;
     assignmentDataContainer.appendChild(courseName);
+
+    // Add click listener to open assignment URL
+    assignmentContainer.addEventListener("click", function(e) {
+        e.preventDefault();
+        window.open(assignment.url, '_blank');
+    });
 
     console.log("Created assignment element for:", assignment.name);
     return assignmentContainer;
@@ -63,11 +70,58 @@ function initializeGUI(courseData) {
     if (calendarContainer) {
         calendarContainer.appendChild(testAssignment);
     }
-    
+
 }
 
 function updateGUI(courseData) {
+    const calendarContainer = document.getElementById("calendar-container");
+    if (!calendarContainer) {
+        console.warn("Calendar container not found");
+        return;
+    }
 
+    // Clear existing test content
+    calendarContainer.innerHTML = "";
+
+    console.log("updateGUI called with courseData:", courseData);
+
+    // Iterate through all courses (courseData is an object keyed by courseId)
+    Object.keys(courseData).forEach((courseId) => {
+        const course = courseData[courseId];
+
+        // Display assignments with due dates (excluding completed)
+        if (course.assignments) {
+            Object.keys(course.assignments).forEach((assignmentId) => {
+                const assignment = course.assignments[assignmentId];
+                if (assignment.dueDate && !assignment.completed) {
+                    const element = createAssignmentElement(assignment, course);
+                    calendarContainer.appendChild(element);
+                }
+            });
+        }
+
+        // Display quizzes with due dates (excluding completed)
+        if (course.quizzes) {
+            Object.keys(course.quizzes).forEach((quizId) => {
+                const quiz = course.quizzes[quizId];
+                if (quiz.dueDate && !quiz.completed) {
+                    const element = createAssignmentElement(quiz, course);
+                    calendarContainer.appendChild(element);
+                }
+            });
+        }
+
+        // Display discussions with due dates (excluding completed)
+        if (course.discussions) {
+            Object.keys(course.discussions).forEach((discussionId) => {
+                const discussion = course.discussions[discussionId];
+                if (discussion.dueDate && !discussion.completed) {
+                    const element = createAssignmentElement(discussion, course);
+                    calendarContainer.appendChild(element);
+                }
+            });
+        }
+    });
 }
 
 window.addEventListener("load", () => {
@@ -81,7 +135,7 @@ window.addEventListener("load", () => {
 
     // initialize GUI
     initializeGUI(courseData);
-    
+
 
     // fetch new data first in case it is faster than storage retrieval
     // fetch  course data and update storage
@@ -90,6 +144,7 @@ window.addEventListener("load", () => {
         // save course data to storage
         chrome.storage.local.set({ courseData: response }, function() {
             Object.assign(courseData, response);
+            updateGUI(courseData);
         });
 
         console.log("Fetched course data:", courseData);
@@ -98,13 +153,11 @@ window.addEventListener("load", () => {
 
     // set courseData from storage if it exists
     chrome.storage.local.get([COURSE_DATA_KEY], function(result) {
-        if (result.courseData && courseData.isEmpty !== false) {
+        if (result.courseData && Object.keys(courseData).length === 0) {
             Object.assign(courseData, result.courseData);
+            updateGUI(courseData);
             console.log("Course data from storage:", courseData);
             console.log("It took " + getTimeTaken(startTime, performance.now()) + "s to load stored course data");
-        } else {
-            //console.log("No course data found in storage.");
-            // if check is not accurate
         }
     });
 
