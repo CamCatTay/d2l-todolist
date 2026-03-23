@@ -411,7 +411,7 @@ window.addEventListener("load", () => {
         if (response) {
             // Completely replace courseData with fresh data
             courseData = JSON.parse(JSON.stringify(response)); // Deep copy
-            
+
             // save course data to storage and update display
             chrome.storage.local.set({ courseData: courseData }, function() {
                 updateGUI(courseData, false); // Mark as fresh data
