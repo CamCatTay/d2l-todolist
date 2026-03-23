@@ -86,9 +86,10 @@ export async function getBaseURL(tabUrl) {
 }
 
 export async function getBrightspaceData(url) {
-
+    console.log("Fetching from URL:", url);
     const response = await fetch(url);
     const data = await response.json();
+    console.log("Raw response:", data);
 
     if ("Next" in data) { // check if there is next page for course data
         if (!data.Next) {
@@ -104,7 +105,14 @@ export async function getBrightspaceData(url) {
         const nextPageItems = await getBrightspaceData(currentPage.toString());
         return data.Items.concat(nextPageItems);
     }
-    return data.Items || data.Object || data.Objects || []; // return Items, Object, or Objects depending on API structure
+    // Handle array response (for APIs that return arrays directly like dropbox)
+    if (Array.isArray(data)) {
+        console.log("API returned array directly:", data);
+        return data;
+    }
+    const result = data.Items || data.Object || data.Objects || []; // return Items, Object, or Objects depending on API structure
+    console.log("Extracted result:", result);
+    return result;
 }
 
 // yeah .join was better approach. benchmarked both and this is nearly 2x faster
@@ -132,6 +140,18 @@ export async function getBrightspaceQuizzes(baseURL, courseId) {
         return Array.isArray(quizzes) ? quizzes : [];
     } catch (error) {
         console.warn(`Failed to fetch quizzes for course ${courseId}:`, error);
+        return [];
+    }
+}
+
+// Fetch assignments (dropbox folders) for a specific course
+export async function getBrightspaceAssignments(baseURL, courseId) {
+    const assignmentsURL = baseURL + `/d2l/api/le/1.82/${courseId}/dropbox/folders/`;
+    try {
+        const assignments = await getBrightspaceData(assignmentsURL);
+        return Array.isArray(assignments) ? assignments : [];
+    } catch (error) {
+        console.warn(`Failed to fetch assignments for course ${courseId}:`, error);
         return [];
     }
 }
@@ -172,18 +192,16 @@ export async function getCourseContent(tabUrl) {
         return item.ActivityType === 1;
     });
 
-    // Filter out quizzes (ActivityType 4) from both lists - we'll fetch them separately
+    // Filter out quizzes (ActivityType 4) and assignments (ActivityType 3) from both lists - we'll fetch them separately
     const filteredGradedItems = gradedItems.filter(function(item) {
-        return item.ActivityType !== 4;
+        return item.ActivityType !== 4 && item.ActivityType !== 3;
     });
 
     let courseItems = filteredGradedItems.concat(nonGradedItems);
 
-    // Fetch quizzes for each course and add them to courseItems
+    // Fetch quizzes and assignments for each course and add them to courseItems
     for (const course of allCourses) {
         const courseQuizzes = await getBrightspaceQuizzes(baseURL, course.OrgUnit.Id);
-        console.log("QUIZZES!")
-        console.log(courseQuizzes)
         const quizItems = courseQuizzes.map(function(quiz) {
             return {
                 UserId: course.UserId,
@@ -200,6 +218,26 @@ export async function getCourseContent(tabUrl) {
             };
         });
         courseItems = courseItems.concat(quizItems);
+
+        const courseAssignments = await getBrightspaceAssignments(baseURL, course.OrgUnit.Id);
+        
+        const assignmentItems = courseAssignments.map(function(assignment) {
+            const item = {
+                UserId: course.UserId,
+                OrgUnitId: course.OrgUnit.Id,
+                ItemId: assignment.Id,
+                ItemName: assignment.Name,
+                ItemType: 3, // Assignment
+                ItemUrl: baseURL + `/d2l/le/dropbox/${course.OrgUnit.Id}/${assignment.Id}`,
+                EndDate: assignment.Availability?.EndDate,
+                DueDate: assignment.DueDate || assignment.Availability?.EndDate, // Use EndDate if DueDate is null
+                CompletionType: assignment.CompletionType,
+                ActivityType: 3, // Assignment
+                IsExempt: false
+            };
+            return item;
+        });
+        courseItems = courseItems.concat(assignmentItems);
     }
 
     const courseMap = await mapData(allCourses, courseItems);
