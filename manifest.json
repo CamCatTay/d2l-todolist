@@ -10,8 +10,7 @@
   "permissions": [
     "tabs",
     "scripting",
-    "storage",
-    "sidePanel"
+    "storage"
   ],
   "content_scripts": [
     {

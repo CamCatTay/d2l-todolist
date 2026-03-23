@@ -10,9 +10,11 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 });
 
 // open side panel on icon click
+/*
 chrome.sidePanel
 .setPanelBehavior({ openPanelOnActionClick: true })
 .catch((error) => console.error(error));
+*/
 
 /*
 // disables side panel on non d2l pages (old method, likely to be removed)
