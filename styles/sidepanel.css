@@ -214,7 +214,7 @@ body:has(#d2l-todolist-widget.hidden) {
 }
 
 .calendar-date-header .date-title {
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 600;
     color: #1a1a1a;
     letter-spacing: 0.5px;
@@ -230,39 +230,37 @@ body:has(#d2l-todolist-widget.hidden) {
 }
 
 .calendar-items-container {
-    padding: 0 16px 24px 16px;
+    padding: 0 0 24px 0;
 }
 
 .calendar-item {
     display: block;
-    padding: 16px;
-    margin: 12px 0;
-    background-color: #f5f5f5;
-    border-left: 4px solid #000000;
+    padding: 14px 16px;
+    margin: 0;
+    background-color: #ffffff;
+    border: none;
+    border-bottom: 1px solid #e5e5e5;
     text-decoration: none;
     color: #1a1a1a;
     cursor: pointer;
     transition: all 0.2s ease;
-    border-radius: 4px;
     word-break: break-word;
     overflow-wrap: break-word;
 }
 
 .calendar-item:hover {
-    background-color: #e8e8e8;
-    transform: translateX(4px);
-    border-left-color: #333;
+    background-color: #f9f9f9;
 }
 
 .calendar-item:active {
-    background-color: #ddd;
+    background-color: #f0f0f0;
 }
 
 .item-name {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     color: #1a1a1a;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     word-break: break-word;
     overflow-wrap: break-word;
 }
@@ -276,15 +274,15 @@ body:has(#d2l-todolist-widget.hidden) {
 }
 
 .item-time {
-    font-size: 13px;
-    color: #666;
-    font-weight: 500;
+    font-size: 12px;
+    color: #555;
+    font-weight: 600;
 }
 
 .item-course {
-    font-size: 12px;
-    color: #999;
-    font-weight: 400;
+    font-size: 11px;
+    color: #888;
+    font-weight: 500;
     white-space: nowrap;
     text-align: right;
     word-break: break-word;
