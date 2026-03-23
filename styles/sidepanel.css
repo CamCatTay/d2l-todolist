@@ -30,10 +30,34 @@ body.d2l-todolist-compact {
     z-index: 9999;
     display: flex;
     box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+    animation: slideInPanel 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 #d2l-todolist-widget.hidden {
-    display: none;
+    animation: slideOutPanel 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    pointer-events: none;
+}
+
+@keyframes slideInPanel {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOutPanel {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
 }
 
 body:has(#d2l-todolist-widget.hidden) {
@@ -78,21 +102,29 @@ body:has(#d2l-todolist-widget.hidden) {
     font-size: 18px;
     font-weight: 600;
     cursor: pointer;
-    z-index: 10000;
+    z-index: 10001;
     border-radius: 4px 0 0 4px;
     padding: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .d2l-todolist-toggle:hover {
     background-color: #333;
+    transform: scale(1.05) translateX(-2px);
+    box-shadow: -2px 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-.d2l-todolist-toggle.expanded {
-    display: none;
+.d2l-todolist-toggle:active {
+    transform: scale(0.98);
+}
+
+#d2l-todolist-widget.hidden .d2l-todolist-toggle:hover {
+    transform: scale(1.08) translateX(-4px);
 }
 
 #calendar-container {

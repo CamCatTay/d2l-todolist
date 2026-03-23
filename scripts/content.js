@@ -32,6 +32,7 @@ const EXPANSION_STATE_KEY = "d2l-todolist-expanded";
 const PANEL_WIDTH_KEY = "d2l-todolist-width";
 let panelWidth = 350; // Default width
 let container, toggleBtn;
+let isAnimating = false; // Prevent multiple simultaneous animations
 
 function updateBodyMargin() {
     // Always maintain the margin-right for DOM balance
@@ -43,13 +44,6 @@ function createEmbeddedCalendarUI() {
     const newContainer = document.createElement("div");
     newContainer.id = "d2l-todolist-widget";
     newContainer.style.width = panelWidth + "px";
-
-    // Create the toggle button (tab at top right)
-    const newToggleBtn = document.createElement("button");
-    newToggleBtn.id = "d2l-todolist-toggle";
-    newToggleBtn.className = "d2l-todolist-toggle";
-    newToggleBtn.textContent = "◀";
-    newToggleBtn.title = "Toggle Calendar";
 
     // Create the panel
     const panel = document.createElement("div");
@@ -67,10 +61,19 @@ function createEmbeddedCalendarUI() {
     panel.appendChild(resizeHandle);
     panel.appendChild(calendarContainer);
     newContainer.appendChild(panel);
-    newContainer.appendChild(newToggleBtn);
+
+    // Create the toggle button (tab at top right) - add to container but we'll move it to body later
+    const newToggleBtn = document.createElement("button");
+    newToggleBtn.id = "d2l-todolist-toggle";
+    newToggleBtn.className = "d2l-todolist-toggle";
+    newToggleBtn.textContent = "◀";
+    newToggleBtn.title = "Toggle Calendar";
 
     // Add toggle functionality with state persistence
     newToggleBtn.addEventListener("click", function() {
+        if (isAnimating) return; // Prevent multiple simultaneous animations
+        isAnimating = true;
+
         newContainer.classList.toggle("hidden");
         const isHidden = newContainer.classList.contains("hidden");
         localStorage.setItem(EXPANSION_STATE_KEY, isHidden ? "false" : "true");
@@ -78,8 +81,17 @@ function createEmbeddedCalendarUI() {
         // Update margin based on visibility
         if (isHidden) {
             document.body.style.marginRight = "0";
+            // Wait for animation to complete before actually hiding
+            const animationHandler = () => {
+                newContainer.style.display = "none";
+                newContainer.removeEventListener("animationend", animationHandler);
+                isAnimating = false;
+            };
+            newContainer.addEventListener("animationend", animationHandler);
         } else {
+            newContainer.style.display = "flex";
             updateBodyMargin();
+            isAnimating = false;
         }
     });
 
@@ -133,6 +145,12 @@ function injectEmbeddedUI() {
         existing.remove();
     }
 
+    // Remove existing toggle button if it exists
+    const existingToggleBtn = document.getElementById("d2l-todolist-toggle");
+    if (existingToggleBtn) {
+        existingToggleBtn.remove();
+    }
+
     // Load saved panel width
     const savedWidth = localStorage.getItem(PANEL_WIDTH_KEY);
     if (savedWidth) {
@@ -149,12 +167,19 @@ function injectEmbeddedUI() {
     const shouldShowPanel = savedState === null || savedState === "true";
 
     if (!shouldShowPanel) {
+        // Don't animate on page load, just hide it immediately
+        container.style.display = "none";
         container.classList.add("hidden");
     }
 
     updateToggleButtonState(toggleBtn, shouldShowPanel);
-    updateBodyMargin();
+    if (shouldShowPanel) {
+        updateBodyMargin();
+    } else {
+        document.body.style.marginRight = "0";
+    }
 
+    document.body.appendChild(toggleBtn);
     document.body.appendChild(container);
 
     return calendarContainer;
@@ -372,7 +397,9 @@ chrome.runtime.onMessage.addListener(function(request) {
         window.open(request.url, '_blank');
     }
     if (request.action === "togglePanel") {
-        if (container) {
+        if (container && !isAnimating) {
+            isAnimating = true;
+
             container.classList.toggle("hidden");
             const isHidden = container.classList.contains("hidden");
             localStorage.setItem(EXPANSION_STATE_KEY, isHidden ? "false" : "true");
@@ -380,8 +407,17 @@ chrome.runtime.onMessage.addListener(function(request) {
             // Update margin based on visibility
             if (isHidden) {
                 document.body.style.marginRight = "0";
+                // Wait for animation to complete before actually hiding
+                const animationHandler = () => {
+                    container.style.display = "none";
+                    container.removeEventListener("animationend", animationHandler);
+                    isAnimating = false;
+                };
+                container.addEventListener("animationend", animationHandler);
             } else {
+                container.style.display = "flex";
                 updateBodyMargin();
+                isAnimating = false;
             }
         }
     }
