@@ -34,10 +34,25 @@ let panelWidth = 350; // Default width
 let container, toggleBtn;
 let isAnimating = false; // Prevent multiple simultaneous animations
 let isDataStale = false; // Track if displayed data is from cache
+let scrollbarWidth = 0; // Store scrollbar width
 
 function updateBodyMargin() {
     // Always maintain the margin-right for DOM balance
     document.body.style.marginRight = panelWidth + "px";
+}
+
+function updateToggleButtonPosition() {
+    if (!toggleBtn) return;
+    
+    const isHidden = container && container.classList.contains("hidden");
+    
+    if (isHidden) {
+        // Position on the right side when panel is closed
+        toggleBtn.style.right = scrollbarWidth + "px";
+    } else {
+        // Position at the left edge of the panel when it's open
+        toggleBtn.style.right = (panelWidth + scrollbarWidth) + "px";
+    }
 }
 
 function createEmbeddedCalendarUI() {
@@ -79,6 +94,7 @@ function createEmbeddedCalendarUI() {
         const isHidden = newContainer.classList.contains("hidden");
         localStorage.setItem(EXPANSION_STATE_KEY, isHidden ? "false" : "true");
         updateToggleButtonState(newToggleBtn, !isHidden);
+        updateToggleButtonPosition(); // Update button position
         // Update margin based on visibility
         if (isHidden) {
             document.body.style.marginRight = "0";
@@ -119,6 +135,7 @@ function createEmbeddedCalendarUI() {
         newContainer.style.width = newWidth + "px";
         panel.style.width = newWidth + "px";
         updateBodyMargin();
+        updateToggleButtonPosition(); // Update button position during resize
 
         localStorage.setItem(PANEL_WIDTH_KEY, newWidth.toString());
     });
@@ -182,6 +199,7 @@ function injectEmbeddedUI() {
 
     document.body.appendChild(toggleBtn);
     document.body.appendChild(container);
+    updateToggleButtonPosition(); // Initial position update
 
     return calendarContainer;
 }
@@ -235,12 +253,12 @@ function formatDateHeader(date) {
     let label = dayNames[date.getDay()];
 
     if (dateOnly.getTime() === todayOnly.getTime()) {
-        label = `Today - ${label}`;
+        label = `Today · ${label}`;
     } else if (dateOnly.getTime() === tomorrowOnly.getTime()) {
-        label = `Tomorrow - ${label}`;
+        label = `Tomorrow · ${label}`;
     }
 
-    return { title, label };
+    return `${title} · ${label}`;
 }
 
 function initializeGUI(courseData) {
@@ -358,8 +376,8 @@ function updateGUI(courseData, isFromCache = false) {
         // Create date header
         const dateHeader = document.createElement("div");
         dateHeader.className = "calendar-date-header";
-        const { title, label } = formatDateHeader(currentDate);
-        dateHeader.innerHTML = `<div class="date-title">${title}</div><div class="date-label">${label}</div>`;
+        const dateHeaderText = formatDateHeader(currentDate);
+        dateHeader.innerHTML = `<div class="date-title">${dateHeaderText}</div>`;
         calendarContainer.appendChild(dateHeader);
 
         // Create items container
@@ -395,6 +413,10 @@ window.addEventListener("load", () => {
     // Inject the embedded UI
     injectEmbeddedUI();
     initializeGUI(courseData);
+
+    // Calculate and store scrollbar width
+    scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    updateToggleButtonPosition(); // Set initial position
 
     // Load stored data first for immediate display
     chrome.storage.local.get([COURSE_DATA_KEY], function(result) {
@@ -436,6 +458,7 @@ chrome.runtime.onMessage.addListener(function(request) {
             const isHidden = container.classList.contains("hidden");
             localStorage.setItem(EXPANSION_STATE_KEY, isHidden ? "false" : "true");
             updateToggleButtonState(toggleBtn, !isHidden);
+            updateToggleButtonPosition(); // Update button position
             // Update margin based on visibility
             if (isHidden) {
                 document.body.style.marginRight = "0";

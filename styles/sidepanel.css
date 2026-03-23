@@ -30,31 +30,49 @@ body.d2l-todolist-compact {
     z-index: 9999;
     display: flex;
     box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
-    animation: slideInPanel 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: slideInPanel 0.4s linear;
 }
 
 #d2l-todolist-widget.hidden {
-    animation: slideOutPanel 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    animation: slideOutPanel 0.4s linear forwards;
     pointer-events: none;
 }
 
 @keyframes slideInPanel {
-    from {
+    0% {
         opacity: 0;
         transform: translateX(100%);
     }
-    to {
+    25% {
+        transform: translateX(75%);
+    }
+    50% {
+        transform: translateX(25%);
+    }
+    75% {
+        transform: translateX(2%);
+    }
+    100% {
         opacity: 1;
         transform: translateX(0);
     }
 }
 
 @keyframes slideOutPanel {
-    from {
+    0% {
         opacity: 1;
         transform: translateX(0);
     }
-    to {
+    25% {
+        transform: translateX(2%);
+    }
+    50% {
+        transform: translateX(25%);
+    }
+    75% {
+        transform: translateX(75%);
+    }
+    100% {
         opacity: 0;
         transform: translateX(100%);
     }
@@ -131,33 +149,35 @@ body:has(#d2l-todolist-widget.hidden) {
     position: fixed;
     top: 20px;
     right: 0;
-    width: 32px;
-    height: 60px;
-    background-color: #1a1a1a;
+    width: 36px;
+    height: 36px;
+    background-color: transparent;
     border: none;
-    color: #ffffff;
-    font-size: 18px;
-    font-weight: 600;
+    color: #1a1a1a;
+    font-size: 16px;
+    font-weight: 500;
     cursor: pointer;
     z-index: 10001;
-    border-radius: 4px 0 0 4px;
-    padding: 8px;
+    border-radius: 6px;
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s ease;
+    transition: right 0.4s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     visibility: visible !important;
     opacity: 1 !important;
+    margin-right: 12px;
+    margin-top: -2px;
 }
 
 .d2l-todolist-toggle:hover {
-    background-color: #333;
-    transform: scale(1.05) translateX(-2px);
-    box-shadow: -2px 4px 8px rgba(0, 0, 0, 0.2);
+    background-color: rgba(0, 0, 0, 0.08);
+    border-color: rgba(0, 0, 0, 0.16);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .d2l-todolist-toggle:active {
-    transform: scale(0.98);
+    background-color: rgba(0, 0, 0, 0.16);
 }
 
 #d2l-todolist-widget.hidden .d2l-todolist-toggle:hover {
