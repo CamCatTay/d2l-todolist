@@ -10,20 +10,18 @@
   "permissions": [
     "tabs",
     "scripting",
-    "storage",
-    "sidePanel"
+    "storage"
   ],
   "content_scripts": [
     {
       "matches": ["https://*/d2l/*"],
       "all_frames": false,
-      "js": ["/scripts/content.js"]
+      "js": ["/scripts/content.js"],
+      "css": ["/styles/sidepanel.css"]
     }
   ],
   "action": {
-    "default_icon": "/images/notebook.png"
-  },
-  "side_panel": {
-    "default_path": "/html/sidepanel.html"
+    "default_icon": "/images/notebook.png",
+    "default_title": "D2L To-Do List"
   }
 }
