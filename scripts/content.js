@@ -31,22 +31,30 @@ function getDateOnly(dateString) {
 const EXPANSION_STATE_KEY = "d2l-todolist-expanded";
 const PANEL_WIDTH_KEY = "d2l-todolist-width";
 let panelWidth = 350; // Default width
+let container, toggleBtn;
+
+function updateBodyMargin() {
+    // Always maintain the margin-right for DOM balance
+    document.body.style.marginRight = panelWidth + "px";
+}
 
 function createEmbeddedCalendarUI() {
     // Create the outer container
-    const container = document.createElement("div");
-    container.id = "d2l-todolist-widget";
+    const newContainer = document.createElement("div");
+    newContainer.id = "d2l-todolist-widget";
+    newContainer.style.width = panelWidth + "px";
 
     // Create the toggle button (tab at top right)
-    const toggleBtn = document.createElement("button");
-    toggleBtn.id = "d2l-todolist-toggle";
-    toggleBtn.className = "d2l-todolist-toggle";
-    toggleBtn.textContent = "◀";
-    toggleBtn.title = "Toggle Calendar";
+    const newToggleBtn = document.createElement("button");
+    newToggleBtn.id = "d2l-todolist-toggle";
+    newToggleBtn.className = "d2l-todolist-toggle";
+    newToggleBtn.textContent = "◀";
+    newToggleBtn.title = "Toggle Calendar";
 
     // Create the panel
     const panel = document.createElement("div");
     panel.id = "d2l-todolist-panel";
+    panel.style.width = panelWidth + "px";
 
     // Create resize handle
     const resizeHandle = document.createElement("div");
@@ -58,16 +66,21 @@ function createEmbeddedCalendarUI() {
 
     panel.appendChild(resizeHandle);
     panel.appendChild(calendarContainer);
-    container.appendChild(panel);
-    container.appendChild(toggleBtn);
+    newContainer.appendChild(panel);
+    newContainer.appendChild(newToggleBtn);
 
     // Add toggle functionality with state persistence
-    toggleBtn.addEventListener("click", function() {
-        container.classList.toggle("expanded");
-        const isExpanded = container.classList.contains("expanded");
-        document.body.classList.toggle("d2l-todolist-expanded", isExpanded);
-        localStorage.setItem(EXPANSION_STATE_KEY, isExpanded ? "true" : "false");
-        updateToggleButtonState(toggleBtn, isExpanded);
+    newToggleBtn.addEventListener("click", function() {
+        newContainer.classList.toggle("hidden");
+        const isHidden = newContainer.classList.contains("hidden");
+        localStorage.setItem(EXPANSION_STATE_KEY, isHidden ? "false" : "true");
+        updateToggleButtonState(newToggleBtn, !isHidden);
+        // Update margin based on visibility
+        if (isHidden) {
+            document.body.style.marginRight = "0";
+        } else {
+            updateBodyMargin();
+        }
     });
 
     // Add resize functionality
@@ -90,9 +103,9 @@ function createEmbeddedCalendarUI() {
         const newWidth = Math.max(250, startWidth - deltaX); // Minimum 250px width
 
         panelWidth = newWidth;
-        container.style.width = newWidth + "px";
+        newContainer.style.width = newWidth + "px";
         panel.style.width = newWidth + "px";
-        document.body.style.marginRight = container.classList.contains("expanded") ? newWidth + "px" : "0";
+        updateBodyMargin();
 
         localStorage.setItem(PANEL_WIDTH_KEY, newWidth.toString());
     });
@@ -105,7 +118,7 @@ function createEmbeddedCalendarUI() {
         }
     });
 
-    return { container, calendarContainer, toggleBtn, panel };
+    return { container: newContainer, calendarContainer, toggleBtn: newToggleBtn, panel };
 }
 
 function updateToggleButtonState(toggleBtn, isExpanded) {
@@ -127,25 +140,20 @@ function injectEmbeddedUI() {
     }
 
     // Create and inject the UI
-    const { container, calendarContainer, toggleBtn, panel } = createEmbeddedCalendarUI();
+    const { container: newContainer, calendarContainer, toggleBtn: newToggleBtn, panel } = createEmbeddedCalendarUI();
+    container = newContainer;
+    toggleBtn = newToggleBtn;
 
-    // Load saved expansion state (default to expanded)
+    // Load saved expansion state (default to showing panel)
     const savedState = localStorage.getItem(EXPANSION_STATE_KEY);
-    const shouldBeExpanded = savedState === null || savedState === "true";
+    const shouldShowPanel = savedState === null || savedState === "true";
 
-    if (shouldBeExpanded) {
-        container.classList.add("expanded");
-        document.body.classList.add("d2l-todolist-expanded");
+    if (!shouldShowPanel) {
+        container.classList.add("hidden");
     }
 
-    // Set custom width
-    container.style.width = panelWidth + "px";
-    panel.style.width = panelWidth + "px";
-    if (shouldBeExpanded) {
-        document.body.style.marginRight = panelWidth + "px";
-    }
-
-    updateToggleButtonState(toggleBtn, shouldBeExpanded);
+    updateToggleButtonState(toggleBtn, shouldShowPanel);
+    updateBodyMargin();
 
     document.body.appendChild(container);
 
@@ -362,5 +370,19 @@ window.addEventListener("load", () => {
 chrome.runtime.onMessage.addListener(function(request) {
     if (request.action === "openUrl") {
         window.open(request.url, '_blank');
+    }
+    if (request.action === "togglePanel") {
+        if (container) {
+            container.classList.toggle("hidden");
+            const isHidden = container.classList.contains("hidden");
+            localStorage.setItem(EXPANSION_STATE_KEY, isHidden ? "false" : "true");
+            updateToggleButtonState(toggleBtn, !isHidden);
+            // Update margin based on visibility
+            if (isHidden) {
+                document.body.style.marginRight = "0";
+            } else {
+                updateBodyMargin();
+            }
+        }
     }
 });
