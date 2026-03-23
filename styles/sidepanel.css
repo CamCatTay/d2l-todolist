@@ -10,18 +10,73 @@ body {
     color: #1a1a1a;
 }
 
+#d2l-todolist-widget {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100vh;
+    width: 0;
+    z-index: 9999;
+    transition: width 0.3s ease;
+    display: flex;
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+#d2l-todolist-widget.expanded {
+    width: 350px;
+}
+
+#d2l-todolist-panel {
+    width: 350px;
+    height: 100%;
+    background-color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.d2l-todolist-toggle {
+    position: fixed;
+    top: 20px;
+    right: 0;
+    width: 32px;
+    height: 60px;
+    background-color: #1a1a1a;
+    border: none;
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 10000;
+    border-radius: 4px 0 0 4px;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.d2l-todolist-toggle:hover {
+    background-color: #333;
+}
+
+.d2l-todolist-toggle.expanded {
+    display: none;
+}
+
 #calendar-container {
     background-color: #ffffff;
     padding: 0;
-    height: 100vh;
+    height: 100%;
     overflow-y: auto;
+    flex: 1;
 }
 
 #loading-indicator {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 100vh;
+    height: 100%;
     font-size: 16px;
     color: #666;
     font-weight: 300;
@@ -112,3 +167,20 @@ body {
     font-size: 13px;
     font-style: italic;
 }
+
+/* Scrollbar styling */
+#calendar-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+#calendar-container::-webkit-scrollbar-track {
+    background: #f0f0f0;
+}
+
+#calendar-container::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+}
+
+#calendar-container::-webkit-scrollbar-thumb:hover {
+    background: #999;

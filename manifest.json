@@ -17,7 +17,8 @@
     {
       "matches": ["https://*/d2l/*"],
       "all_frames": false,
-      "js": ["/scripts/content.js"]
+      "js": ["/scripts/content.js"],
+      "css": ["/styles/sidepanel.css"]
     }
   ],
   "action": {

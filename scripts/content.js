@@ -28,6 +28,73 @@ function getDateOnly(dateString) {
     }
 }
 
+const EXPANSION_STATE_KEY = "d2l-todolist-expanded";
+
+function createEmbeddedCalendarUI() {
+    // Create the outer container
+    const container = document.createElement("div");
+    container.id = "d2l-todolist-widget";
+
+    // Create the toggle button (tab at top right)
+    const toggleBtn = document.createElement("button");
+    toggleBtn.id = "d2l-todolist-toggle";
+    toggleBtn.className = "d2l-todolist-toggle";
+    toggleBtn.textContent = "◀";
+    toggleBtn.title = "Toggle Calendar";
+
+    // Create the panel
+    const panel = document.createElement("div");
+    panel.id = "d2l-todolist-panel";
+
+    // Create the calendar container
+    const calendarContainer = document.createElement("div");
+    calendarContainer.id = "calendar-container";
+
+    panel.appendChild(calendarContainer);
+    container.appendChild(panel);
+    container.appendChild(toggleBtn);
+
+    // Add toggle functionality with state persistence
+    toggleBtn.addEventListener("click", function() {
+        container.classList.toggle("expanded");
+        const isExpanded = container.classList.contains("expanded");
+        localStorage.setItem(EXPANSION_STATE_KEY, isExpanded ? "true" : "false");
+        updateToggleButtonState(toggleBtn, isExpanded);
+    });
+
+    return { container, calendarContainer, toggleBtn };
+}
+
+function updateToggleButtonState(toggleBtn, isExpanded) {
+    toggleBtn.textContent = isExpanded ? "▶" : "◀";
+    toggleBtn.title = isExpanded ? "Collapse Calendar" : "Expand Calendar";
+}
+
+function injectEmbeddedUI() {
+    // Remove existing widget if it exists
+    const existing = document.getElementById("d2l-todolist-widget");
+    if (existing) {
+        existing.remove();
+    }
+
+    // Create and inject the UI
+    const { container, calendarContainer, toggleBtn } = createEmbeddedCalendarUI();
+
+    // Load saved expansion state (default to expanded)
+    const savedState = localStorage.getItem(EXPANSION_STATE_KEY);
+    const shouldBeExpanded = savedState === null || savedState === "true";
+
+    if (shouldBeExpanded) {
+        container.classList.add("expanded");
+    }
+
+    updateToggleButtonState(toggleBtn, shouldBeExpanded);
+
+    document.body.appendChild(container);
+
+    return calendarContainer;
+}
+
 function createAssignmentElement(assignment, course) {
     const assignmentContainer = document.createElement("a");
     assignmentContainer.className = "calendar-item";
@@ -39,7 +106,7 @@ function createAssignmentElement(assignment, course) {
 
     const itemMeta = document.createElement("div");
     itemMeta.className = "item-meta";
-    
+
     const itemTime = document.createElement("span");
     itemTime.className = "item-time";
     itemTime.textContent = formatTimeFromDate(assignment.dueDate);
@@ -206,10 +273,9 @@ window.addEventListener("load", () => {
     const startTime = performance.now();
     const COURSE_DATA_KEY = "courseData";
     const courseData = {};
-    const oldCourseDataMap = new Map(); // {courseId, complete: false}
-    const dateContainerMap = new Map(); // {date, dateContainer}
 
-    // initialize GUI with loading indicator
+    // Inject the embedded UI
+    injectEmbeddedUI();
     initializeGUI(courseData);
 
     // Load stored data first for immediate display
@@ -234,11 +300,6 @@ window.addEventListener("load", () => {
         console.log("Fetched course data:", courseData);
         console.log("It took " + getTimeTaken(startTime, performance.now()) + "s to fetch course data");
     });
-
-    // setup UI and create oldCourseDataMap
-
-    // save course data before unloading/leaving the page (and periodically)
-
 });
 
 chrome.runtime.onMessage.addListener(function(request) {
