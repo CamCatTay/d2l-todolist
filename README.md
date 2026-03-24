@@ -14,6 +14,9 @@ This extension fixes that by pulling your assignments and displaying them in a c
 
 ## Installation (Manual or Web Store)
 
+Note: This extension will work on ANY Chromium based browser.
+(Google Chrome, Microsoft Edge, Opera, Brave, ect)
+
 Not yet published to the Chrome Web Store. Install manually:
 
 1. Clone or download this repo
@@ -22,7 +25,7 @@ git clone https://github.com/CamCatTay/spark-for-brightspace.git
 ```
 
 2. Open Chrome and navigate to `chrome://extensions/`
-3. Enable Developer Mode (top right toggle)
+3. Enable Developer Mode
 4. Click Load unpacked and select the project folder
 5. Navigate to any D2L course page the side panel icon will appear
 
