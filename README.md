@@ -18,7 +18,7 @@ Not yet published to the Chrome Web Store. Install manually:
 
 1. Clone or download this repo
 ```bash
-git clone https://github.com/YOUR_USERNAME/d2l-assignment-tracker.git
+git clone https://github.com/CamCatTay/spark-for-brightspace.git
 ```
 
 2. Open Chrome and navigate to `chrome://extensions/`
