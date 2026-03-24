@@ -1,3 +1,23 @@
+// Words that mark the start of administrative suffixes in course names.
+// Everything from the first matching word onward will be stripped.
+const COURSE_NAME_TRIM_WORDS = [
+    "Section",
+    "XLS",
+    "Group",
+    "Spring",
+    "Fall",
+    "Winter",
+    "Summer",
+];
+
+function truncateCourseName(name) {
+    if (!name) return name;
+    const pattern = COURSE_NAME_TRIM_WORDS
+        .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+        .join("|");
+    return name.replace(new RegExp(`\\s*(${pattern})\\b.*$`, "i"), "").trim();
+}
+
 function createScrollbarIndicator(calendarContainer) {
     const existingIndicator = calendarContainer.parentElement.querySelector(".scrollbar-indicator");
     if (existingIndicator) existingIndicator.remove();
@@ -97,7 +117,7 @@ function createAssignmentElement(assignment, course) {
 
     const itemCourse = document.createElement("span");
     itemCourse.className = "item-course";
-    itemCourse.textContent = course.name;
+    itemCourse.textContent = truncateCourseName(course.name);
     itemCourse.style.color = getCourseColor(course.name);
     itemCourse.style.fontWeight = "bold";
     itemMeta.appendChild(itemCourse);
