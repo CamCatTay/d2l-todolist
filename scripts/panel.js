@@ -6,6 +6,14 @@ let container, toggleBtn;
 let isAnimating = false;
 let isDataStale = false;
 let scrollbarWidth = 0;
+// True when the panel was closed by another tab taking over (not by the user).
+let wasClosedSilently = false;
+// Callback invoked when the panel is restored after a silent close.
+let _onPanelRestore = null;
+
+function registerPanelRestoreCallback(fn) {
+    _onPanelRestore = fn;
+}
 
 function updateBodyMargin() {
     document.body.style.marginRight = panelWidth + "px";
@@ -38,6 +46,9 @@ function togglePanel() {
     updateToggleButtonState(toggleBtn, !isHidden);
     updateToggleButtonPosition();
 
+    wasClosedSilently = false;
+    chrome.runtime.sendMessage({ action: isHidden ? "panelClosed" : "panelOpened" });
+
     if (isHidden) {
         document.body.style.marginRight = "0";
         const animationHandler = () => {
@@ -51,6 +62,19 @@ function togglePanel() {
         updateBodyMargin();
         isAnimating = false;
     }
+}
+
+// Close the panel without changing the user's saved preference.
+// Used when another tab takes over as the active panel.
+// Deliberately skips animation — the user is not watching this tab.
+function closePanelSilently() {
+    if (!container || container.classList.contains("hidden")) return;
+    wasClosedSilently = true;
+    container.classList.add("hidden");
+    container.style.display = "none";
+    updateToggleButtonState(toggleBtn, false);
+    updateToggleButtonPosition();
+    document.body.style.marginRight = "0";
 }
 
 function createEmbeddedCalendarUI() {
@@ -153,6 +177,32 @@ function injectEmbeddedUI() {
     document.body.appendChild(toggleBtn);
     document.body.appendChild(container);
     updateToggleButtonPosition();
+
+    // Claim the active panel slot if starting visible.
+    if (shouldShowPanel) {
+        chrome.runtime.sendMessage({ action: "panelOpened" });
+    }
+
+    // When the user switches back to this tab and the panel was silently
+    // closed by another tab, re-open it and reclaim the active slot.
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible" && wasClosedSilently) {
+            const state = localStorage.getItem(EXPANSION_STATE_KEY);
+            if (state === null || state === "true") {
+                wasClosedSilently = false;
+                // Hard-reset animation guard — any in-flight animationend handlers
+                // from the silent close are now irrelevant.
+                isAnimating = false;
+                container.style.display = "flex";
+                container.classList.remove("hidden");
+                updateToggleButtonState(toggleBtn, true);
+                updateBodyMargin();
+                updateToggleButtonPosition();
+                chrome.runtime.sendMessage({ action: "panelOpened" });
+                if (_onPanelRestore) _onPanelRestore();
+            }
+        }
+    });
 
     return calendarContainer;
 }
