@@ -33,7 +33,8 @@ function createScrollbarIndicator(calendarContainer) {
     if (scrollHeight <= containerHeight) return;
 
     assignments.forEach((assignmentEl) => {
-        const courseName = assignmentEl.querySelector(".item-course")?.textContent || "";
+        const courseEl = assignmentEl.querySelector(".item-course");
+        const courseName = courseEl?.dataset.fullName || courseEl?.textContent || "";
         const courseColor = getCourseColor(courseName);
         const positionInContainer = assignmentEl.offsetTop;
         const percentPosition = (positionInContainer / scrollHeight) * 100;
@@ -118,6 +119,7 @@ function createAssignmentElement(assignment, course) {
     const itemCourse = document.createElement("span");
     itemCourse.className = "item-course";
     itemCourse.textContent = truncateCourseName(course.name);
+    itemCourse.dataset.fullName = course.name;
     itemCourse.style.color = getCourseColor(course.name);
     itemCourse.style.fontWeight = "bold";
     itemMeta.appendChild(itemCourse);
