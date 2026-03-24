@@ -400,51 +400,50 @@ body:has(#d2l-todolist-widget.hidden) {
 .frequency-chart-container {
     position: sticky;
     top: 0;
-    padding: 16px 12px;
+    padding: 10px 12px;
     border-bottom: 2px solid #e0e0e0;
     background-color: #fafafa;
     z-index: 100;
 }
 
-.frequency-chart-header {
+.frequency-chart-row {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
+    align-items: flex-end;
+    gap: 6px;
 }
 
-.frequency-chart-title {
-    font-size: 11px;
-    font-weight: 600;
-    color: #666;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 0 8px;
-}
-
-.frequency-chart-nav {
-    display: flex;
-    gap: 8px;
+.frequency-chart-row .frequency-chart-grid {
+    flex: 1;
 }
 
 .frequency-chart-btn {
-    background-color: #e0e0e0;
+    background: none;
     border: none;
-    border-radius: 3px;
-    padding: 4px 8px;
+    padding: 0;
+    width: 16px;
     cursor: pointer;
-    font-size: 12px;
-    font-weight: 600;
-    color: #333;
-    transition: all 0.2s ease;
+    font-size: 18px;
+    line-height: 1;
+    font-weight: 400;
+    color: #999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    /* offset from bottom to center on the bar-container:
+       bar-center = count(9px) + gap(4px) + half-bar(30px) = 43px
+       button center = margin-bottom + font-size/2 ≈ margin-bottom + 9px
+    */
+    margin-bottom: 55px;
+    transition: color 0.2s ease;
 }
 
 .frequency-chart-btn:hover:not(:disabled) {
-    background-color: #d0d0d0;
+    color: #333;
 }
 
 .frequency-chart-btn:active:not(:disabled) {
-    background-color: #c0c0c0;
+    color: #111;
 }
 
 .frequency-chart-btn:disabled {
@@ -463,6 +462,12 @@ body:has(#d2l-todolist-widget.hidden) {
     flex-direction: column;
     align-items: center;
     gap: 4px;
+    transition: opacity 0.2s ease;
+    cursor: pointer;
+}
+
+.frequency-day:hover {
+    opacity: 0.7;
 }
 
 .frequency-day-label {

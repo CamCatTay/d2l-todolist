@@ -270,41 +270,37 @@ function createFrequencyChart(calendarContainer, itemsByDate) {
     // Store current week and offset
     chartContainer._todayWeekStart = todayWeekStart.getTime();
     chartContainer._weekOffset = 0; // 0 = current week, 1 = next week, -1 = prev week (not allowed)
-    
-    // Create header with navigation
-    const header = document.createElement("div");
-    header.className = "frequency-chart-header";
+    chartContainer._calendarContainer = calendarContainer; // Store for click-to-scroll
     
     const prevBtn = document.createElement("button");
     prevBtn.className = "frequency-chart-btn";
-    prevBtn.textContent = "< Prev";
+    prevBtn.textContent = "‹";
     prevBtn.disabled = true;
     prevBtn.id = "frequency-chart-prev";
-    
-    const title = document.createElement("div");
-    title.className = "frequency-chart-title";
-    title.id = "frequency-chart-title";
-    title.textContent = "Week Workload";
+    prevBtn.title = "Previous week";
     
     const nextBtn = document.createElement("button");
     nextBtn.className = "frequency-chart-btn";
-    nextBtn.textContent = "Next >";
+    nextBtn.textContent = "›";
     nextBtn.id = "frequency-chart-next";
-    
-    header.appendChild(prevBtn);
-    header.appendChild(title);
-    header.appendChild(nextBtn);
-    chartContainer.appendChild(header);
+    nextBtn.title = "Next week";
     
     // Create grid container
     const grid = document.createElement("div");
     grid.className = "frequency-chart-grid";
     grid.id = "frequency-chart-grid";
-    chartContainer.appendChild(grid);
+    
+    // Wrap grid + side buttons in a single row
+    const chartRow = document.createElement("div");
+    chartRow.className = "frequency-chart-row";
+    chartRow.appendChild(prevBtn);
+    chartRow.appendChild(grid);
+    chartRow.appendChild(nextBtn);
+    chartContainer.appendChild(chartRow);
     
     // Initial render
     try {
-        renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, 0);
+        renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, 0, calendarContainer);
     } catch (e) {
         console.error("Error rendering frequency chart:", e);
     }
@@ -315,7 +311,7 @@ function createFrequencyChart(calendarContainer, itemsByDate) {
             const offset = chartContainer._weekOffset;
             if (offset > 0) {
                 chartContainer._weekOffset = offset - 1;
-                renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, chartContainer._weekOffset);
+                renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, chartContainer._weekOffset, calendarContainer);
                 updateFrequencyNavButtons(chartContainer);
             }
         } catch (e) {
@@ -326,7 +322,7 @@ function createFrequencyChart(calendarContainer, itemsByDate) {
     nextBtn.addEventListener("click", () => {
         try {
             chartContainer._weekOffset += 1;
-            renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, chartContainer._weekOffset);
+            renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, chartContainer._weekOffset, calendarContainer);
             updateFrequencyNavButtons(chartContainer);
         } catch (e) {
             console.error("Error in next button click:", e);
@@ -342,13 +338,14 @@ function createFrequencyChart(calendarContainer, itemsByDate) {
     }
 }
 
-function renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, weekOffset) {
+function renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, weekOffset, calendarContainer) {
     try {
         const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const grid = chartContainer.querySelector("#frequency-chart-grid");
         if (!grid) return; // Safety check
         
         grid.innerHTML = "";
+        if (!calendarContainer) calendarContainer = chartContainer._calendarContainer; // Fallback
         
         // Calculate the week to display - convert timestamp back to Date if needed
         let displayWeekStart;
@@ -372,16 +369,6 @@ function renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, weekO
             maxCount = Math.max(maxCount, count);
         }
         
-        // Update title with week range
-        const titleEl = chartContainer.querySelector("#frequency-chart-title");
-        if (titleEl) {
-            const startDate = new Date(displayWeekStart);
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const weekLabel = weekOffset === 0 
-                ? "Week Workload" 
-                : `Week of ${monthNames[startDate.getMonth()]} ${startDate.getDate()}`;
-            titleEl.textContent = weekLabel;
-        }
         
         // Create day cells
         for (let i = 0; i < 7; i++) {
@@ -417,10 +404,67 @@ function renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, weekO
             countLabel.textContent = count > 0 ? count : "—";
             dayCell.appendChild(countLabel);
             
+            // Add click handler to scroll to this date
+            if (calendarContainer) {
+                dayCell.style.cursor = "pointer";
+                dayCell.addEventListener("click", () => {
+                    scrollToDate(calendarContainer, dayDate);
+                });
+            }
+            
             grid.appendChild(dayCell);
         }
     } catch (e) {
         console.error("Error in renderFrequencyChart:", e);
+    }
+}
+
+function scrollToDate(calendarContainer, targetDate) {
+    try {
+        const dateHeaders = Array.from(calendarContainer.querySelectorAll(".calendar-date-header"));
+
+        for (const header of dateHeaders) {
+            const titleText = header.querySelector(".date-title")?.textContent || "";
+            const dateMatch = titleText.match(/(\w+)\s+(\d+)/);
+
+            if (dateMatch) {
+                const monthStr = dateMatch[1];
+                const day = parseInt(dateMatch[2]);
+
+                const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+                const monthIndex = months.findIndex(m => m.startsWith(monthStr.toLowerCase()));
+
+                if (monthIndex >= 0 && day === targetDate.getDate() && monthIndex === targetDate.getMonth()) {
+                    // .calendar-date-header is position:sticky, so getBoundingClientRect().top
+                    // returns the "stuck" position when scrolled past — not its natural layout position.
+                    // Instead, measure its non-sticky sibling (.calendar-items-container) which always
+                    // reflects the true layout position in the scrollable content.
+                    const chartEl = calendarContainer.querySelector("#frequency-chart");
+                    const chartHeight = chartEl ? chartEl.getBoundingClientRect().height : 0;
+                    const containerRect = calendarContainer.getBoundingClientRect();
+
+                    const itemsContainer = header.nextElementSibling;
+                    let targetScroll;
+                    if (itemsContainer) {
+                        const itemsRect = itemsContainer.getBoundingClientRect();
+                        // Absolute position of the items container within scrollable content
+                        const itemsAbsolutePos = itemsRect.top - containerRect.top + calendarContainer.scrollTop;
+                        // The header sits directly above the items container; offsetHeight is unaffected by sticky
+                        targetScroll = Math.max(0, itemsAbsolutePos - header.offsetHeight - chartHeight);
+                    } else {
+                        // Fallback for a header with no following sibling
+                        const headerRect = header.getBoundingClientRect();
+                        const absolutePos = headerRect.top - containerRect.top + calendarContainer.scrollTop;
+                        targetScroll = Math.max(0, absolutePos - chartHeight);
+                    }
+
+                    calendarContainer.scrollTo({ top: targetScroll, behavior: "smooth" });
+                    return;
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Error scrolling to date:", e);
     }
 }
 
