@@ -77,11 +77,6 @@ function createAssignmentElement(assignment, course) {
         const startDateContainer = document.createElement("div");
         startDateContainer.className = "start-date-container";
 
-        const startDateLabel = document.createElement("span");
-        startDateLabel.className = "start-date-label";
-        startDateLabel.textContent = "Available: ";
-        startDateContainer.appendChild(startDateLabel);
-
         const startDateValue = document.createElement("span");
         startDateValue.className = "start-date-value";
         startDateValue.textContent = formatFullDatetime(assignment.startDate);
@@ -92,11 +87,6 @@ function createAssignmentElement(assignment, course) {
 
     const dueContainer = document.createElement("div");
     dueContainer.className = "due-date-container";
-
-    const dueLabel = document.createElement("span");
-    dueLabel.className = "due-date-label";
-    dueLabel.textContent = "Due: ";
-    dueContainer.appendChild(dueLabel);
 
     const dueTime = document.createElement("span");
     dueTime.className = "item-time";
