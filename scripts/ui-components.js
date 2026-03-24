@@ -271,7 +271,7 @@ function createFrequencyChart(calendarContainer, itemsByDate) {
     chartContainer._todayWeekStart = todayWeekStart.getTime();
     chartContainer._weekOffset = 0; // 0 = current week, 1 = next week, -1 = prev week (not allowed)
     chartContainer._calendarContainer = calendarContainer; // Store for click-to-scroll
-    
+
     const prevBtn = document.createElement("button");
     prevBtn.className = "frequency-chart-btn";
     prevBtn.textContent = "‹";

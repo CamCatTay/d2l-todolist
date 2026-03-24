@@ -29,5 +29,11 @@
   "action": {
     "default_icon": "/images/spark_logo.png",
     "default_title": "Spark for Brightspace"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["images/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
