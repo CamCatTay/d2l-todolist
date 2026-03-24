@@ -18,6 +18,19 @@ function formatTimeFromDate(dateString) {
     }
 }
 
+function formatFullDatetime(dateString) {
+    if (!dateString) return "No date";
+    try {
+        const date = new Date(dateString);
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const dateStr = `${monthNames[date.getMonth()]} ${date.getDate()}`;
+        const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        return `${dateStr} at ${timeStr}`;
+    } catch (e) {
+        return "No date";
+    }
+}
+
 function getDateOnly(dateString) {
     if (!dateString) return null;
     try {
@@ -34,10 +47,25 @@ let panelWidth = 350; // Default width
 let container, toggleBtn;
 let isAnimating = false; // Prevent multiple simultaneous animations
 let isDataStale = false; // Track if displayed data is from cache
+let scrollbarWidth = 0; // Store scrollbar width
 
 function updateBodyMargin() {
     // Always maintain the margin-right for DOM balance
     document.body.style.marginRight = panelWidth + "px";
+}
+
+function updateToggleButtonPosition() {
+    if (!toggleBtn) return;
+    
+    const isHidden = container && container.classList.contains("hidden");
+    
+    if (isHidden) {
+        // Position on the right side when panel is closed
+        toggleBtn.style.right = scrollbarWidth + "px";
+    } else {
+        // Position at the left edge of the panel when it's open
+        toggleBtn.style.right = (panelWidth + scrollbarWidth) + "px";
+    }
 }
 
 function createEmbeddedCalendarUI() {
@@ -79,6 +107,7 @@ function createEmbeddedCalendarUI() {
         const isHidden = newContainer.classList.contains("hidden");
         localStorage.setItem(EXPANSION_STATE_KEY, isHidden ? "false" : "true");
         updateToggleButtonState(newToggleBtn, !isHidden);
+        updateToggleButtonPosition(); // Update button position
         // Update margin based on visibility
         if (isHidden) {
             document.body.style.marginRight = "0";
@@ -119,6 +148,7 @@ function createEmbeddedCalendarUI() {
         newContainer.style.width = newWidth + "px";
         panel.style.width = newWidth + "px";
         updateBodyMargin();
+        updateToggleButtonPosition(); // Update button position during resize
 
         localStorage.setItem(PANEL_WIDTH_KEY, newWidth.toString());
     });
@@ -182,6 +212,7 @@ function injectEmbeddedUI() {
 
     document.body.appendChild(toggleBtn);
     document.body.appendChild(container);
+    updateToggleButtonPosition(); // Initial position update
 
     return calendarContainer;
 }
@@ -189,6 +220,19 @@ function injectEmbeddedUI() {
 function createAssignmentElement(assignment, course) {
     const assignmentContainer = document.createElement("a");
     assignmentContainer.className = "calendar-item";
+
+    // Check if assignment is not yet available (start date is after today)
+    const now = new Date();
+    const nowDateOnly = getDateOnly(now);
+    const startDateOnly = assignment.startDate ? getDateOnly(assignment.startDate) : null;
+    const isNotYetAvailable = startDateOnly && startDateOnly > nowDateOnly;
+    
+    console.log("Rendering: " + assignment.name + " | startDate: " + assignment.startDate + " | startDateOnly: " + (startDateOnly ? startDateOnly.toISOString() : null) + " | nowDateOnly: " + nowDateOnly.toISOString() + " | isNotYetAvailable: " + isNotYetAvailable);
+    
+    if (isNotYetAvailable) {
+        assignmentContainer.classList.add("not-yet-available");
+        assignmentContainer.style.pointerEvents = "none"; // Disable click on unavailable items
+    }
 
     const itemName = document.createElement("div");
     itemName.className = "item-name";
@@ -198,10 +242,39 @@ function createAssignmentElement(assignment, course) {
     const itemMeta = document.createElement("div");
     itemMeta.className = "item-meta";
 
-    const itemTime = document.createElement("span");
-    itemTime.className = "item-time";
-    itemTime.textContent = formatTimeFromDate(assignment.dueDate);
-    itemMeta.appendChild(itemTime);
+    // Display start date if it exists
+    if (assignment.startDate) {
+        const startDateContainer = document.createElement("div");
+        startDateContainer.className = "start-date-container";
+        
+        const startDateLabel = document.createElement("span");
+        startDateLabel.className = "start-date-label";
+        startDateLabel.textContent = "Available: ";
+        startDateContainer.appendChild(startDateLabel);
+        
+        const startDateValue = document.createElement("span");
+        startDateValue.className = "start-date-value";
+        startDateValue.textContent = formatFullDatetime(assignment.startDate);
+        startDateContainer.appendChild(startDateValue);
+        
+        itemMeta.appendChild(startDateContainer);
+    }
+
+    // Display due date
+    const dueContainer = document.createElement("div");
+    dueContainer.className = "due-date-container";
+    
+    const dueLabel = document.createElement("span");
+    dueLabel.className = "due-date-label";
+    dueLabel.textContent = "Due: ";
+    dueContainer.appendChild(dueLabel);
+    
+    const dueTime = document.createElement("span");
+    dueTime.className = "item-time";
+    dueTime.textContent = formatTimeFromDate(assignment.dueDate);
+    dueContainer.appendChild(dueTime);
+    
+    itemMeta.appendChild(dueContainer);
 
     const itemCourse = document.createElement("span");
     itemCourse.className = "item-course";
@@ -213,7 +286,9 @@ function createAssignmentElement(assignment, course) {
     // Add click listener to open assignment URL
     assignmentContainer.addEventListener("click", function(e) {
         e.preventDefault();
-        window.open(assignment.url, '_blank');
+        if (!isNotYetAvailable) {
+            window.open(assignment.url, '_blank');
+        }
     });
 
     return assignmentContainer;
@@ -235,12 +310,12 @@ function formatDateHeader(date) {
     let label = dayNames[date.getDay()];
 
     if (dateOnly.getTime() === todayOnly.getTime()) {
-        label = `Today - ${label}`;
+        label = `Today · ${label}`;
     } else if (dateOnly.getTime() === tomorrowOnly.getTime()) {
-        label = `Tomorrow - ${label}`;
+        label = `Tomorrow · ${label}`;
     }
 
-    return { title, label };
+    return `${title} · ${label}`;
 }
 
 function initializeGUI(courseData) {
@@ -358,8 +433,8 @@ function updateGUI(courseData, isFromCache = false) {
         // Create date header
         const dateHeader = document.createElement("div");
         dateHeader.className = "calendar-date-header";
-        const { title, label } = formatDateHeader(currentDate);
-        dateHeader.innerHTML = `<div class="date-title">${title}</div><div class="date-label">${label}</div>`;
+        const dateHeaderText = formatDateHeader(currentDate);
+        dateHeader.innerHTML = `<div class="date-title">${dateHeaderText}</div>`;
         calendarContainer.appendChild(dateHeader);
 
         // Create items container
@@ -395,6 +470,10 @@ window.addEventListener("load", () => {
     // Inject the embedded UI
     injectEmbeddedUI();
     initializeGUI(courseData);
+
+    // Calculate and store scrollbar width
+    scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    updateToggleButtonPosition(); // Set initial position
 
     // Load stored data first for immediate display
     chrome.storage.local.get([COURSE_DATA_KEY], function(result) {
@@ -436,6 +515,7 @@ chrome.runtime.onMessage.addListener(function(request) {
             const isHidden = container.classList.contains("hidden");
             localStorage.setItem(EXPANSION_STATE_KEY, isHidden ? "false" : "true");
             updateToggleButtonState(toggleBtn, !isHidden);
+            updateToggleButtonPosition(); // Update button position
             // Update margin based on visibility
             if (isHidden) {
                 document.body.style.marginRight = "0";
