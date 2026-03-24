@@ -207,14 +207,14 @@ body:has(#d2l-todolist-widget.hidden) {
     position: sticky;
     top: 0;
     background-color: #ffffff;
-    padding: 24px 20px 8px 20px;
+    padding: 12px 16px 6px 16px;
     border-bottom: 2px solid #000000;
     z-index: 10;
     word-break: break-word;
 }
 
 .calendar-date-header .date-title {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     color: #1a1a1a;
     letter-spacing: 0.5px;
@@ -222,10 +222,10 @@ body:has(#d2l-todolist-widget.hidden) {
 }
 
 .calendar-date-header .date-label {
-    font-size: 13px;
+    font-size: 11px;
     color: #666;
     font-weight: 400;
-    margin-top: 4px;
+    margin-top: 2px;
     word-break: break-word;
 }
 
@@ -235,7 +235,7 @@ body:has(#d2l-todolist-widget.hidden) {
 
 .calendar-item {
     display: block;
-    padding: 14px 16px;
+    padding: 8px 14px;
     margin: 0;
     background-color: #ffffff;
     border: none;
@@ -271,15 +271,15 @@ body:has(#d2l-todolist-widget.hidden) {
 }
 
 .calendar-item.not-yet-available .start-date-value {
-    color: #d68d00;
+    color: #666;
     font-weight: 600;
 }
 
 .item-name {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     color: #1a1a1a;
-    margin-bottom: 8px;
+    margin-bottom: 3px;
     word-break: break-word;
     overflow-wrap: break-word;
 }
@@ -288,7 +288,7 @@ body:has(#d2l-todolist-widget.hidden) {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
+    gap: 6px;
     flex-wrap: wrap;
 }
 
@@ -394,4 +394,152 @@ body:has(#d2l-todolist-widget.hidden) {
     opacity: 1;
     height: calc(var(--scrollbar-notch-height) * 1.5);
     cursor: pointer;
+}
+
+/* Panel Header Styles */
+.panel-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 12px;
+    border-bottom: 2px solid #e0e0e0;
+    background-color: #f5f5f5;
+    position: sticky;
+    top: 0;
+    z-index: 101;
+}
+
+.header-logo {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.header-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a1a1a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Frequency Chart Styles */
+.frequency-chart-container {
+    position: sticky;
+    top: 0;
+    padding: 10px 12px;
+    border-bottom: 2px solid #e0e0e0;
+    background-color: #fafafa;
+    z-index: 100;
+}
+
+.frequency-chart-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.frequency-chart-row .frequency-chart-grid {
+    flex: 1;
+}
+
+.frequency-chart-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    width: 16px;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    font-weight: 400;
+    color: #999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    /* offset from bottom to center on the bar-container:
+       bar-center = count(9px) + gap(4px) + half-bar(30px) = 43px
+       button center = margin-bottom + font-size/2 ≈ margin-bottom + 9px
+    */
+    margin-bottom: 55px;
+    transition: color 0.2s ease;
+}
+
+.frequency-chart-btn:hover:not(:disabled) {
+    color: #333;
+}
+
+.frequency-chart-btn:active:not(:disabled) {
+    color: #111;
+}
+
+.frequency-chart-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.frequency-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+}
+
+.frequency-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: opacity 0.2s ease;
+    cursor: pointer;
+}
+
+.frequency-day:hover {
+    opacity: 0.7;
+}
+
+.frequency-day-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #333;
+    text-transform: uppercase;
+}
+
+.frequency-day-date {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+.frequency-bar-container {
+    width: 100%;
+    height: 60px;
+    background-color: #e8e8e8;
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+}
+
+.frequency-bar {
+    width: 100%;
+    background: linear-gradient(135deg, #2196F3, #1976D2);
+    border-radius: 1px;
+    transition: all 0.3s ease;
+    min-height: 2px;
+}
+
+.frequency-bar:hover {
+    background: linear-gradient(135deg, #1976D2, #1565C0);
+    filter: brightness(1.1);
+}
+
+.frequency-day-count {
+    font-size: 9px;
+    color: #666;
+    font-weight: 500;
+    margin-top: 2px;
 }

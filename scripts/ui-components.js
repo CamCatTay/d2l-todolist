@@ -1,3 +1,23 @@
+// Words that mark the start of administrative suffixes in course names.
+// Everything from the first matching word onward will be stripped.
+const COURSE_NAME_TRIM_WORDS = [
+    "Section",
+    "XLS",
+    "Group",
+    "Spring",
+    "Fall",
+    "Winter",
+    "Summer",
+];
+
+function truncateCourseName(name) {
+    if (!name) return name;
+    const pattern = COURSE_NAME_TRIM_WORDS
+        .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+        .join("|");
+    return name.replace(new RegExp(`\\s*(${pattern})\\b.*$`, "i"), "").trim();
+}
+
 function createScrollbarIndicator(calendarContainer) {
     const existingIndicator = calendarContainer.parentElement.querySelector(".scrollbar-indicator");
     if (existingIndicator) existingIndicator.remove();
@@ -77,11 +97,6 @@ function createAssignmentElement(assignment, course) {
         const startDateContainer = document.createElement("div");
         startDateContainer.className = "start-date-container";
 
-        const startDateLabel = document.createElement("span");
-        startDateLabel.className = "start-date-label";
-        startDateLabel.textContent = "Available: ";
-        startDateContainer.appendChild(startDateLabel);
-
         const startDateValue = document.createElement("span");
         startDateValue.className = "start-date-value";
         startDateValue.textContent = formatFullDatetime(assignment.startDate);
@@ -93,11 +108,6 @@ function createAssignmentElement(assignment, course) {
     const dueContainer = document.createElement("div");
     dueContainer.className = "due-date-container";
 
-    const dueLabel = document.createElement("span");
-    dueLabel.className = "due-date-label";
-    dueLabel.textContent = "Due: ";
-    dueContainer.appendChild(dueLabel);
-
     const dueTime = document.createElement("span");
     dueTime.className = "item-time";
     dueTime.textContent = formatTimeFromDate(assignment.dueDate);
@@ -107,7 +117,7 @@ function createAssignmentElement(assignment, course) {
 
     const itemCourse = document.createElement("span");
     itemCourse.className = "item-course";
-    itemCourse.textContent = course.name;
+    itemCourse.textContent = truncateCourseName(course.name);
     itemCourse.style.color = getCourseColor(course.name);
     itemCourse.style.fontWeight = "bold";
     itemMeta.appendChild(itemCourse);
@@ -201,12 +211,20 @@ function updateGUI(courseData, isFromCache = false) {
 
     // Empty state
     if (!minDate || !maxDate) {
-        if (isFromCache) addDataStatusIndicator(true);
         const emptyMessage = document.createElement("div");
         emptyMessage.id = "loading-indicator";
         emptyMessage.textContent = "No upcoming assignments";
         calendarContainer.appendChild(emptyMessage);
         return;
+    }
+
+    // Create frequency chart at the top
+    try {
+        if (typeof createFrequencyChart === 'function' && typeof getWeekStart === 'function' && typeof getDateKey === 'function') {
+            createFrequencyChart(calendarContainer, itemsByDate);
+        }
+    } catch (e) {
+        console.error("Error creating frequency chart (non-fatal):", e);
     }
 
     // Generate calendar from today to maxDate
@@ -245,4 +263,235 @@ function updateGUI(courseData, isFromCache = false) {
     }
 
     createScrollbarIndicator(calendarContainer);
+}
+
+function createFrequencyChart(calendarContainer, itemsByDate) {
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
+    // Get the week containing today
+    const today = new Date();
+    const todayWeekStart = getWeekStart(today);
+    
+    // Create chart container
+    const chartContainer = document.createElement("div");
+    chartContainer.className = "frequency-chart-container";
+    chartContainer.id = "frequency-chart";
+    
+    // Store current week and offset
+    chartContainer._todayWeekStart = todayWeekStart.getTime();
+    chartContainer._weekOffset = 0; // 0 = current week, 1 = next week, -1 = prev week (not allowed)
+    chartContainer._calendarContainer = calendarContainer; // Store for click-to-scroll
+
+    const prevBtn = document.createElement("button");
+    prevBtn.className = "frequency-chart-btn";
+    prevBtn.textContent = "‹";
+    prevBtn.disabled = true;
+    prevBtn.id = "frequency-chart-prev";
+    prevBtn.title = "Previous week";
+    
+    const nextBtn = document.createElement("button");
+    nextBtn.className = "frequency-chart-btn";
+    nextBtn.textContent = "›";
+    nextBtn.id = "frequency-chart-next";
+    nextBtn.title = "Next week";
+    
+    // Create grid container
+    const grid = document.createElement("div");
+    grid.className = "frequency-chart-grid";
+    grid.id = "frequency-chart-grid";
+    
+    // Wrap grid + side buttons in a single row
+    const chartRow = document.createElement("div");
+    chartRow.className = "frequency-chart-row";
+    chartRow.appendChild(prevBtn);
+    chartRow.appendChild(grid);
+    chartRow.appendChild(nextBtn);
+    chartContainer.appendChild(chartRow);
+    
+    // Initial render
+    try {
+        renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, 0, calendarContainer);
+    } catch (e) {
+        console.error("Error rendering frequency chart:", e);
+    }
+    
+    // Add button event listeners with error handling
+    prevBtn.addEventListener("click", () => {
+        try {
+            const offset = chartContainer._weekOffset;
+            if (offset > 0) {
+                chartContainer._weekOffset = offset - 1;
+                renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, chartContainer._weekOffset, calendarContainer);
+                updateFrequencyNavButtons(chartContainer);
+            }
+        } catch (e) {
+            console.error("Error in prev button click:", e);
+        }
+    });
+    
+    nextBtn.addEventListener("click", () => {
+        try {
+            chartContainer._weekOffset += 1;
+            renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, chartContainer._weekOffset, calendarContainer);
+            updateFrequencyNavButtons(chartContainer);
+        } catch (e) {
+            console.error("Error in next button click:", e);
+        }
+    });
+    
+    // Insert at the beginning of the calendar
+    try {
+        calendarContainer.insertBefore(chartContainer, calendarContainer.firstChild);
+    } catch (e) {
+        console.error("Error inserting frequency chart:", e);
+        calendarContainer.appendChild(chartContainer);
+    }
+}
+
+function renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, weekOffset, calendarContainer) {
+    try {
+        const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const grid = chartContainer.querySelector("#frequency-chart-grid");
+        if (!grid) return; // Safety check
+        
+        grid.innerHTML = "";
+        if (!calendarContainer) calendarContainer = chartContainer._calendarContainer; // Fallback
+        
+        // Calculate the week to display - convert timestamp back to Date if needed
+        let displayWeekStart;
+        if (typeof todayWeekStart === 'number') {
+            displayWeekStart = new Date(todayWeekStart);
+        } else {
+            displayWeekStart = new Date(todayWeekStart.getFullYear(), todayWeekStart.getMonth(), todayWeekStart.getDate());
+        }
+        displayWeekStart.setDate(displayWeekStart.getDate() + (weekOffset * 7));
+        
+        // Count assignments by day of the week
+        const weekCounts = [0, 0, 0, 0, 0, 0, 0];
+        let maxCount = 0;
+        
+        for (let i = 0; i < 7; i++) {
+            const dayDate = new Date(displayWeekStart);
+            dayDate.setDate(dayDate.getDate() + i);
+            const dateKey = getDateKey(dayDate);
+            const count = itemsByDate[dateKey]?.length || 0;
+            weekCounts[i] = count;
+            maxCount = Math.max(maxCount, count);
+        }
+        
+        
+        // Create day cells
+        for (let i = 0; i < 7; i++) {
+            const dayDate = new Date(displayWeekStart);
+            dayDate.setDate(dayDate.getDate() + i);
+            const count = weekCounts[i];
+            const heightPercent = maxCount === 0 ? 0 : (count / maxCount) * 100;
+            
+            const dayCell = document.createElement("div");
+            dayCell.className = "frequency-day";
+            
+            const dayLabel = document.createElement("div");
+            dayLabel.className = "frequency-day-label";
+            dayLabel.textContent = dayLabels[i];
+            dayCell.appendChild(dayLabel);
+            
+            const dateNum = document.createElement("div");
+            dateNum.className = "frequency-day-date";
+            dateNum.textContent = dayDate.getDate();
+            dayCell.appendChild(dateNum);
+            
+            const barContainer = document.createElement("div");
+            barContainer.className = "frequency-bar-container";
+            
+            const bar = document.createElement("div");
+            bar.className = "frequency-bar";
+            bar.style.height = heightPercent + "%";
+            barContainer.appendChild(bar);
+            dayCell.appendChild(barContainer);
+            
+            const countLabel = document.createElement("div");
+            countLabel.className = "frequency-day-count";
+            countLabel.textContent = count > 0 ? count : "—";
+            dayCell.appendChild(countLabel);
+            
+            // Add click handler to scroll to this date
+            if (calendarContainer) {
+                dayCell.style.cursor = "pointer";
+                dayCell.addEventListener("click", () => {
+                    scrollToDate(calendarContainer, dayDate);
+                });
+            }
+            
+            grid.appendChild(dayCell);
+        }
+    } catch (e) {
+        console.error("Error in renderFrequencyChart:", e);
+    }
+}
+
+function scrollToDate(calendarContainer, targetDate) {
+    try {
+        const dateHeaders = Array.from(calendarContainer.querySelectorAll(".calendar-date-header"));
+
+        for (const header of dateHeaders) {
+            const titleText = header.querySelector(".date-title")?.textContent || "";
+            const dateMatch = titleText.match(/(\w+)\s+(\d+)/);
+
+            if (dateMatch) {
+                const monthStr = dateMatch[1];
+                const day = parseInt(dateMatch[2]);
+
+                const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+                const monthIndex = months.findIndex(m => m.startsWith(monthStr.toLowerCase()));
+
+                if (monthIndex >= 0 && day === targetDate.getDate() && monthIndex === targetDate.getMonth()) {
+                    // .calendar-date-header is position:sticky, so getBoundingClientRect().top
+                    // returns the "stuck" position when scrolled past — not its natural layout position.
+                    // Instead, measure its non-sticky sibling (.calendar-items-container) which always
+                    // reflects the true layout position in the scrollable content.
+                    const chartEl = calendarContainer.querySelector("#frequency-chart");
+                    const chartHeight = chartEl ? chartEl.getBoundingClientRect().height : 0;
+                    const containerRect = calendarContainer.getBoundingClientRect();
+
+                    const itemsContainer = header.nextElementSibling;
+                    let targetScroll;
+                    if (itemsContainer) {
+                        const itemsRect = itemsContainer.getBoundingClientRect();
+                        // Absolute position of the items container within scrollable content
+                        const itemsAbsolutePos = itemsRect.top - containerRect.top + calendarContainer.scrollTop;
+                        // The header sits directly above the items container; offsetHeight is unaffected by sticky
+                        targetScroll = Math.max(0, itemsAbsolutePos - header.offsetHeight - chartHeight);
+                    } else {
+                        // Fallback for a header with no following sibling
+                        const headerRect = header.getBoundingClientRect();
+                        const absolutePos = headerRect.top - containerRect.top + calendarContainer.scrollTop;
+                        targetScroll = Math.max(0, absolutePos - chartHeight);
+                    }
+
+                    calendarContainer.scrollTo({ top: targetScroll, behavior: "smooth" });
+                    return;
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Error scrolling to date:", e);
+    }
+}
+
+function updateFrequencyNavButtons(chartContainer) {
+    try {
+        const prevBtn = chartContainer.querySelector("#frequency-chart-prev");
+        const nextBtn = chartContainer.querySelector("#frequency-chart-next");
+        if (!prevBtn || !nextBtn) return;
+        
+        const offset = chartContainer._weekOffset || 0;
+        
+        // Prev button disabled when at current week
+        prevBtn.disabled = offset <= 0;
+        
+        // Next button always enabled (no upper limit)
+        nextBtn.disabled = false;
+    } catch (e) {
+        console.error("Error updating frequency nav buttons:", e);
+    }
 }

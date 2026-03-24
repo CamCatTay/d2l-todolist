@@ -54,3 +54,14 @@ function formatDateHeader(date) {
 
     return `${title} · ${label}`;
 }
+
+function getWeekStart(date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day;
+    return new Date(d.getFullYear(), d.getMonth(), diff);
+}
+
+function getDateKey(date) {
+    return date.toISOString().split('T')[0];
+}

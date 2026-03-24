@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "D2L To-Do List",
+  "name": "Spark for Brightspace",
   "version": "1.0.0",
-  "description": "An extension to manage a to-do list for D2L courses.",
+  "description": "A productivity extension for Brightspace.",
   "background": {
     "service_worker": "/scripts/background.js",
     "type": "module"
@@ -27,7 +27,13 @@
     }
   ],
   "action": {
-    "default_icon": "/images/notebook.png",
-    "default_title": "D2L To-Do List"
-  }
+    "default_icon": "/images/spark_logo.png",
+    "default_title": "Spark for Brightspace"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["images/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

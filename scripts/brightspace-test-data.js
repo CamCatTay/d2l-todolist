@@ -97,7 +97,7 @@ export async function getTestCourseContent(mapData) {
     // Generate fake items for each course
     const fakeItems = [];
     fakeCourses.forEach(course => {
-        const courseItems = generateFakeBrightspaceItems(5, course.OrgUnit.Id);
+        const courseItems = generateFakeBrightspaceItems(30, course.OrgUnit.Id);
         fakeItems.push(...courseItems);
     });
 
