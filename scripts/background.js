@@ -12,7 +12,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     }
 
     if (request.action === "openFaq") {
-        chrome.tabs.create({ url: chrome.runtime.getURL("html/faq.html") });
+        chrome.tabs.create({ url: "https://camcattay.github.io/spark-for-brightspace/faq.html" });
         return;
     }
 
