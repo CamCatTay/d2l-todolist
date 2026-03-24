@@ -395,3 +395,116 @@ body:has(#d2l-todolist-widget.hidden) {
     height: calc(var(--scrollbar-notch-height) * 1.5);
     cursor: pointer;
 }
+
+/* Frequency Chart Styles */
+.frequency-chart-container {
+    position: sticky;
+    top: 0;
+    padding: 16px 12px;
+    border-bottom: 2px solid #e0e0e0;
+    background-color: #fafafa;
+    z-index: 100;
+}
+
+.frequency-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.frequency-chart-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0 8px;
+}
+
+.frequency-chart-nav {
+    display: flex;
+    gap: 8px;
+}
+
+.frequency-chart-btn {
+    background-color: #e0e0e0;
+    border: none;
+    border-radius: 3px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+    transition: all 0.2s ease;
+}
+
+.frequency-chart-btn:hover:not(:disabled) {
+    background-color: #d0d0d0;
+}
+
+.frequency-chart-btn:active:not(:disabled) {
+    background-color: #c0c0c0;
+}
+
+.frequency-chart-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.frequency-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+}
+
+.frequency-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.frequency-day-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #333;
+    text-transform: uppercase;
+}
+
+.frequency-day-date {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+.frequency-bar-container {
+    width: 100%;
+    height: 60px;
+    background-color: #e8e8e8;
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+}
+
+.frequency-bar {
+    width: 100%;
+    background: linear-gradient(135deg, #2196F3, #1976D2);
+    border-radius: 1px;
+    transition: all 0.3s ease;
+    min-height: 2px;
+}
+
+.frequency-bar:hover {
+    background: linear-gradient(135deg, #1976D2, #1565C0);
+    filter: brightness(1.1);
+}
+
+.frequency-day-count {
+    font-size: 9px;
+    color: #666;
+    font-weight: 500;
+    margin-top: 2px;
+}
