@@ -143,14 +143,40 @@ export async function getBrightspaceAssignments(baseURL, courseId) {
     }
 }
 
-// Fetch submissions for a specific dropbox folder (assignment)
+// Fetch submissions for a specific dropbox folder (assignment).
+// If the API returns an error (e.g. professor closed the folder), falls back to
+// scraping the submission history page and checking for any submission rows.
 export async function getAssignmentSubmissions(baseURL, courseId, assignmentId) {
     try {
         const submissionsURL = baseURL + `/d2l/api/le/1.82/${courseId}/dropbox/folders/${assignmentId}/submissions/`;
-        const submissions = await getBrightspaceData(submissionsURL);
-        return Array.isArray(submissions) ? submissions : [];
+        const response = await fetch(submissionsURL);
+        const data = await response.json();
+
+        // API returned an error object (e.g. folder closed by professor)
+        if (!Array.isArray(data) && data.Errors) {
+            return await getAssignmentSubmissionsFromHistory(baseURL, courseId, assignmentId);
+        }
+
+        return Array.isArray(data) ? data : [];
     } catch (error) {
         console.warn(`Failed to fetch submissions for assignment ${assignmentId}:`, error);
+        return [];
+    }
+}
+
+// Fallback: scrape the submission history page and return a synthetic submissions
+// array with one entry if any submission rows (td.d_gn.d_gt) are found.
+async function getAssignmentSubmissionsFromHistory(baseURL, courseId, assignmentId) {
+    try {
+        const historyURL = baseURL + `/d2l/lms/dropbox/user/folders_history.d2l?db=${assignmentId}&grpid=0&isprv=0&bp=0&ou=${courseId}`;
+        const response = await fetch(historyURL, { credentials: 'include' });
+        if (!response.ok) return [];
+        const html = await response.text();
+        // If the history table has at least one data row the user submitted
+        const hasSubmission = html.includes('class="d_gn d_gt"');
+        return hasSubmission ? [{ Submissions: [{ Id: 'history' }] }] : [];
+    } catch (error) {
+        console.warn(`Failed to fetch submission history for assignment ${assignmentId}:`, error);
         return [];
     }
 }
