@@ -41,7 +41,9 @@ function updateToggleButtonPosition() {
     if (isHidden) {
         toggleBtn.style.right = scrollbarWidth + "px";
     } else {
-        toggleBtn.style.right = (panelWidth + scrollbarWidth) + "px";
+        // Place button inside the panel at its top-left corner.
+        // Accounts for: 8px inner padding + 36px button width + 12px CSS margin-right.
+        toggleBtn.style.right = (panelWidth - 56) + "px";
     }
 }
 
