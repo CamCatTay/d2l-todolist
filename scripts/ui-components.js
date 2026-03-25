@@ -130,6 +130,13 @@ function createAssignmentElement(assignment, course) {
         window.open(assignment.url, '_blank');
     });
 
+    if (assignment.completed) {
+        const completedBadge = document.createElement("div");
+        completedBadge.className = "item-completed-badge";
+        completedBadge.textContent = "✓";
+        assignmentContainer.appendChild(completedBadge);
+    }
+
     return assignmentContainer;
 }
 
@@ -181,16 +188,16 @@ function updateGUI(courseData, isFromCache = false) {
         const course = courseData[courseId];
 
         const itemCollections = [
-            { items: course.assignments },
-            { items: course.quizzes },
-            { items: course.discussions }
+            { items: course.assignments, showCompleted: false },
+            { items: course.quizzes, showCompleted: true },
+            { items: course.discussions, showCompleted: false }
         ];
 
-        itemCollections.forEach(({ items }) => {
+        itemCollections.forEach(({ items, showCompleted }) => {
             if (items) {
                 Object.keys(items).forEach((itemId) => {
                     const item = items[itemId];
-                    if (item.dueDate && !item.completed) {
+                    if (item.dueDate && (!item.completed || showCompleted)) {
                         const dateOnly = getDateOnly(item.dueDate);
                         if (dateOnly) {
                             const dateKey = dateOnly.toISOString().split('T')[0];
@@ -266,16 +273,16 @@ function updateGUI(courseData, isFromCache = false) {
 
 function createFrequencyChart(calendarContainer, itemsByDate) {
     const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    
+
     // Get the week containing today
     const today = new Date();
     const todayWeekStart = getWeekStart(today);
-    
+
     // Create chart container
     const chartContainer = document.createElement("div");
     chartContainer.className = "frequency-chart-container";
     chartContainer.id = "frequency-chart";
-    
+
     // Store current week and offset
     chartContainer._todayWeekStart = todayWeekStart.getTime();
     chartContainer._weekOffset = 0; // 0 = current week, 1 = next week, -1 = prev week (not allowed)
@@ -287,18 +294,18 @@ function createFrequencyChart(calendarContainer, itemsByDate) {
     prevBtn.disabled = true;
     prevBtn.id = "frequency-chart-prev";
     prevBtn.title = "Previous week";
-    
+
     const nextBtn = document.createElement("button");
     nextBtn.className = "frequency-chart-btn";
     nextBtn.textContent = "›";
     nextBtn.id = "frequency-chart-next";
     nextBtn.title = "Next week";
-    
+
     // Create grid container
     const grid = document.createElement("div");
     grid.className = "frequency-chart-grid";
     grid.id = "frequency-chart-grid";
-    
+
     // Week label row (label + FAQ button)
     const weekLabelRow = document.createElement("div");
     weekLabelRow.className = "frequency-chart-header-row";
@@ -327,14 +334,14 @@ function createFrequencyChart(calendarContainer, itemsByDate) {
     chartRow.appendChild(grid);
     chartRow.appendChild(nextBtn);
     chartContainer.appendChild(chartRow);
-    
+
     // Initial render
     try {
         renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, 0, calendarContainer);
     } catch (e) {
         console.error("Error rendering frequency chart:", e);
     }
-    
+
     // Add button event listeners with error handling
     prevBtn.addEventListener("click", () => {
         try {
@@ -348,7 +355,7 @@ function createFrequencyChart(calendarContainer, itemsByDate) {
             console.error("Error in prev button click:", e);
         }
     });
-    
+
     nextBtn.addEventListener("click", () => {
         try {
             chartContainer._weekOffset += 1;
@@ -358,7 +365,7 @@ function createFrequencyChart(calendarContainer, itemsByDate) {
             console.error("Error in next button click:", e);
         }
     });
-    
+
     // Insert at the beginning of the calendar
     try {
         calendarContainer.insertBefore(chartContainer, calendarContainer.firstChild);
@@ -373,10 +380,10 @@ function renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, weekO
         const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const grid = chartContainer.querySelector("#frequency-chart-grid");
         if (!grid) return; // Safety check
-        
+
         grid.innerHTML = "";
         if (!calendarContainer) calendarContainer = chartContainer._calendarContainer; // Fallback
-        
+
         // Calculate the week to display - convert timestamp back to Date if needed
         let displayWeekStart;
         if (typeof todayWeekStart === 'number') {
@@ -392,11 +399,11 @@ function renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, weekO
             const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
             weekLabelEl.textContent = `Week of ${monthNames[displayWeekStart.getMonth()]} ${displayWeekStart.getDate()}`;
         }
-        
+
         // Count assignments by day of the week
         const weekCounts = [0, 0, 0, 0, 0, 0, 0];
         let maxCount = 0;
-        
+
         for (let i = 0; i < 7; i++) {
             const dayDate = new Date(displayWeekStart);
             dayDate.setDate(dayDate.getDate() + i);
@@ -405,42 +412,42 @@ function renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, weekO
             weekCounts[i] = count;
             maxCount = Math.max(maxCount, count);
         }
-        
-        
+
+
         // Create day cells
         for (let i = 0; i < 7; i++) {
             const dayDate = new Date(displayWeekStart);
             dayDate.setDate(dayDate.getDate() + i);
             const count = weekCounts[i];
             const heightPercent = maxCount === 0 ? 0 : (count / maxCount) * 100;
-            
+
             const dayCell = document.createElement("div");
             dayCell.className = "frequency-day";
-            
+
             const dayLabel = document.createElement("div");
             dayLabel.className = "frequency-day-label";
             dayLabel.textContent = dayLabels[i];
             dayCell.appendChild(dayLabel);
-            
+
             const dateNum = document.createElement("div");
             dateNum.className = "frequency-day-date";
             dateNum.textContent = dayDate.getDate();
             dayCell.appendChild(dateNum);
-            
+
             const barContainer = document.createElement("div");
             barContainer.className = "frequency-bar-container";
-            
+
             const bar = document.createElement("div");
             bar.className = "frequency-bar";
             bar.style.height = heightPercent + "%";
             barContainer.appendChild(bar);
             dayCell.appendChild(barContainer);
-            
+
             const countLabel = document.createElement("div");
             countLabel.className = "frequency-day-count";
             countLabel.textContent = count > 0 ? count : "—";
             dayCell.appendChild(countLabel);
-            
+
             // Add click handler to scroll to this date
             if (calendarContainer) {
                 dayCell.style.cursor = "pointer";
@@ -448,7 +455,7 @@ function renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, weekO
                     scrollToDate(calendarContainer, dayDate);
                 });
             }
-            
+
             grid.appendChild(dayCell);
         }
     } catch (e) {
@@ -510,12 +517,12 @@ function updateFrequencyNavButtons(chartContainer) {
         const prevBtn = chartContainer.querySelector("#frequency-chart-prev");
         const nextBtn = chartContainer.querySelector("#frequency-chart-next");
         if (!prevBtn || !nextBtn) return;
-        
+
         const offset = chartContainer._weekOffset || 0;
-        
+
         // Prev button disabled when at current week
         prevBtn.disabled = offset <= 0;
-        
+
         // Next button always enabled (no upper limit)
         nextBtn.disabled = false;
     } catch (e) {

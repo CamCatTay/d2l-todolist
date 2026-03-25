@@ -235,6 +235,7 @@ body:has(#d2l-todolist-widget.hidden) {
 
 .calendar-item {
     display: block;
+    position: relative;
     padding: 8px 14px;
     margin: 0;
     background-color: #ffffff;
@@ -246,6 +247,18 @@ body:has(#d2l-todolist-widget.hidden) {
     transition: all 0.2s ease;
     word-break: break-word;
     overflow-wrap: break-word;
+}
+
+.item-completed-badge {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    color: #999999;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1;
+    pointer-events: none;
+    z-index: 1;
 }
 
 .calendar-item:hover {
