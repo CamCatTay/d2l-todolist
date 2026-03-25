@@ -254,7 +254,7 @@ body:has(#d2l-todolist-widget.hidden) {
     top: 6px;
     right: 8px;
     color: #000000;
-    font-size: 20px;
+    font-size: 15px;
     font-weight: 700;
     line-height: 1;
     pointer-events: none;
