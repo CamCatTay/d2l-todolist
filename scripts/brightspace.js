@@ -143,6 +143,69 @@ export async function getBrightspaceAssignments(baseURL, courseId) {
     }
 }
 
+// Fetch submissions for a specific dropbox folder (assignment).
+// If the API returns an error (e.g. professor closed the folder), falls back to
+// scraping the submission history page and checking for any submission rows.
+export async function getAssignmentSubmissions(baseURL, courseId, assignmentId) {
+    try {
+        const submissionsURL = baseURL + `/d2l/api/le/1.82/${courseId}/dropbox/folders/${assignmentId}/submissions/`;
+        const response = await fetch(submissionsURL);
+        const data = await response.json();
+
+        // API returned an error object (e.g. folder closed by professor)
+        if (!Array.isArray(data) && data.Errors) {
+            return await getAssignmentSubmissionsFromHistory(baseURL, courseId, assignmentId);
+        }
+
+        return Array.isArray(data) ? data : [];
+    } catch (error) {
+        console.warn(`Failed to fetch submissions for assignment ${assignmentId}:`, error);
+        return [];
+    }
+}
+
+// Fallback: scrape the submission history page and return a synthetic submissions
+// array with one entry if any submission rows (td.d_gn.d_gt) are found.
+async function getAssignmentSubmissionsFromHistory(baseURL, courseId, assignmentId) {
+    try {
+        const historyURL = baseURL + `/d2l/lms/dropbox/user/folders_history.d2l?db=${assignmentId}&grpid=0&isprv=0&bp=0&ou=${courseId}`;
+        const response = await fetch(historyURL, { credentials: 'include' });
+        if (!response.ok) return [];
+        const html = await response.text();
+        // If the history table has at least one data row the user submitted
+        const hasSubmission = html.includes('class="d_gn d_gt"');
+        return hasSubmission ? [{ Submissions: [{ Id: 'history' }] }] : [];
+    } catch (error) {
+        console.warn(`Failed to fetch submission history for assignment ${assignmentId}:`, error);
+        return [];
+    }
+}
+
+// Get the current user's numeric ID
+export async function getCurrentUserId(baseURL) {
+    try {
+        const response = await fetch(baseURL + '/d2l/api/lp/1.49/users/whoami');
+        if (!response.ok) return null;
+        const data = await response.json();
+        return parseInt(data.Identifier, 10);
+    } catch (error) {
+        console.warn('Failed to fetch current user ID:', error);
+        return null;
+    }
+}
+
+// Fetch posts for a specific discussion topic
+export async function getDiscussionTopicPosts(baseURL, courseId, forumId, topicId) {
+    try {
+        const postsURL = baseURL + `/d2l/api/le/1.82/${courseId}/discussions/forums/${forumId}/topics/${topicId}/posts/`;
+        const posts = await getBrightspaceData(postsURL);
+        return Array.isArray(posts) ? posts : [];
+    } catch (error) {
+        console.warn(`Failed to fetch posts for topic ${topicId}:`, error);
+        return [];
+    }
+}
+
 // Fetch discussion forums for a specific course
 export async function getBrightspaceDiscussionForums(baseURL, courseId) {
     const forumsURL = baseURL + `/d2l/api/le/1.82/${courseId}/discussions/forums/`;
@@ -167,6 +230,40 @@ export async function getBrightspaceDiscussionTopics(baseURL, courseId, forumId)
     }
 }
 
+/**
+ * Fetches the number of completed attempts for a quiz from the quiz summary page.
+ * Reads the server-rendered HTML and extracts the count from the element with id="z_l".
+ * Falls back to regex matching anywhere in the page body.
+ * @param {string} baseURL - The base URL of the Brightspace instance
+ * @param {number|string} quizId - The quiz ID (qi parameter)
+ * @param {number|string} orgId - The org unit ID (ou parameter)
+ * @returns {Promise<number>} The number of completed attempts, or 0 if not found
+ */
+export async function getQuizAttemptCount(baseURL, quizId, orgId) {
+    try {
+        const url = `${baseURL}/d2l/lms/quizzing/user/quiz_summary.d2l?qi=${quizId}&ou=${orgId}`;
+        const response = await fetch(url, { credentials: 'include' });
+        if (!response.ok) return 0;
+        const html = await response.text();
+
+        // Primary: extract inline text content of the element with id="z_l"
+        const zlElementMatch = html.match(/id=["']z_l["'][^>]*>([^<]*)/);
+        if (zlElementMatch) {
+            const completedMatch = zlElementMatch[1].match(/Completed\s*-\s*(\d+)/);
+            if (completedMatch) return parseInt(completedMatch[1], 10);
+        }
+
+        // Fallback: match "Completed - <N>" anywhere in the page body
+        const fallbackMatch = html.match(/Completed\s*-\s*(\d+)/);
+        if (fallbackMatch) return parseInt(fallbackMatch[1], 10);
+
+        return 0;
+    } catch (error) {
+        console.warn(`Failed to fetch quiz attempt count for quiz ${quizId}:`, error);
+        return 0;
+    }
+}
+
 
 export async function getCourseContent(tabUrl) {
     // Return fake data if in test mode
@@ -177,6 +274,7 @@ export async function getCourseContent(tabUrl) {
     const baseURL = await getBaseURL(tabUrl);
     const allCourses = await getBrightspaceCourses(baseURL);
     const courseIdsCSV = await getCourseIds(allCourses);
+    const currentUserId = await getCurrentUserId(baseURL);
 
     // Increase the date range by 1 day on either side to account for time zone differences
     let startDate = new Date(allCourses[0].Access.StartDate);
@@ -213,7 +311,14 @@ export async function getCourseContent(tabUrl) {
     // Fetch quizzes and assignments for each course and add them to courseItems
     for (const course of allCourses) {
         const courseQuizzes = await getBrightspaceQuizzes(baseURL, course.OrgUnit.Id);
-        const quizItems = courseQuizzes.map(function(quiz) {
+
+        // Fetch attempt counts for all quizzes in this course in parallel
+        const attemptCounts = await Promise.all(
+            courseQuizzes.map(quiz => getQuizAttemptCount(baseURL, quiz.QuizId, course.OrgUnit.Id))
+        );
+
+        const quizItems = courseQuizzes.map(function(quiz, index) {
+            const attemptCount = attemptCounts[index];
             return {
                 UserId: course.UserId,
                 OrgUnitId: course.OrgUnit.Id,
@@ -226,14 +331,22 @@ export async function getCourseContent(tabUrl) {
                 DueDate: quiz.DueDate || quiz.EndDate, // Use EndDate if DueDate is null
                 CompletionType: 1,
                 ActivityType: 4, // Quiz
-                IsExempt: false
+                IsExempt: false,
+                DateCompleted: attemptCount > 0 ? new Date().toISOString() : null
             };
         });
         courseItems = courseItems.concat(quizItems);
 
         const courseAssignments = await getBrightspaceAssignments(baseURL, course.OrgUnit.Id);
-        
-        const assignmentItems = courseAssignments.map(function(assignment) {
+
+        // Fetch submissions for all assignments in this course in parallel
+        const assignmentSubmissions = await Promise.all(
+            courseAssignments.map(assignment => getAssignmentSubmissions(baseURL, course.OrgUnit.Id, assignment.Id))
+        );
+
+        const assignmentItems = courseAssignments.map(function(assignment, index) {
+            const submissions = assignmentSubmissions[index];
+            const hasSubmission = submissions.some(s => s.Submissions && s.Submissions.length > 0);
             const item = {
                 UserId: course.UserId,
                 OrgUnitId: course.OrgUnit.Id,
@@ -246,18 +359,26 @@ export async function getCourseContent(tabUrl) {
                 DueDate: assignment.DueDate || assignment.Availability?.EndDate,
                 CompletionType: assignment.CompletionType,
                 ActivityType: 3, // Assignment
-                IsExempt: false
+                IsExempt: false,
+                DateCompleted: hasSubmission ? new Date().toISOString() : null
             };
             return item;
         });
         courseItems = courseItems.concat(assignmentItems);
 
         const discussionForums = await getBrightspaceDiscussionForums(baseURL, course.OrgUnit.Id);
-        
+
         for (const forum of discussionForums) {
             const discussionTopics = await getBrightspaceDiscussionTopics(baseURL, course.OrgUnit.Id, forum.ForumId);
-            
-            const discussionItems = discussionTopics.map(function(topic) {
+
+            // Fetch posts for all topics in this forum in parallel
+            const topicPosts = await Promise.all(
+                discussionTopics.map(topic => getDiscussionTopicPosts(baseURL, course.OrgUnit.Id, forum.ForumId, topic.TopicId))
+            );
+
+            const discussionItems = discussionTopics.map(function(topic, index) {
+                const posts = topicPosts[index];
+                const hasPosted = currentUserId !== null && posts.some(p => p.PostingUserId === currentUserId);
                 const item = {
                     UserId: course.UserId,
                     OrgUnitId: course.OrgUnit.Id,
@@ -270,7 +391,8 @@ export async function getCourseContent(tabUrl) {
                     DueDate: topic.EndDate || topic.StartDate,
                     CompletionType: 0,
                     ActivityType: 5, // Discussion
-                    IsExempt: false
+                    IsExempt: false,
+                    DateCompleted: hasPosted ? new Date().toISOString() : null
                 };
                 return item;
             });
