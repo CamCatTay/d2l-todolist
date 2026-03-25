@@ -133,7 +133,7 @@ function createAssignmentElement(assignment, course) {
     if (assignment.completed) {
         const completedBadge = document.createElement("div");
         completedBadge.className = "item-completed-badge";
-        completedBadge.textContent = "✓";
+        completedBadge.textContent = "🗹";
         assignmentContainer.appendChild(completedBadge);
     }
 
