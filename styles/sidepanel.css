@@ -1,4 +1,5 @@
-* {
+:where(#d2l-todolist-widget) *,
+:where(.d2l-todolist-toggle) {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -8,8 +9,6 @@ html, body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
     background-color: #ffffff;
     color: #1a1a1a;
-    height: 100%;
-    overflow-x: hidden;
 }
 
 body {
