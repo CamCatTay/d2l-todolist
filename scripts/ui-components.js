@@ -188,9 +188,9 @@ function updateGUI(courseData, isFromCache = false) {
         const course = courseData[courseId];
 
         const itemCollections = [
-            { items: course.assignments, showCompleted: false },
+            { items: course.assignments, showCompleted: true },
             { items: course.quizzes, showCompleted: true },
-            { items: course.discussions, showCompleted: false }
+            { items: course.discussions, showCompleted: true }
         ];
 
         itemCollections.forEach(({ items, showCompleted }) => {
