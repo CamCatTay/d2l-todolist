@@ -1,4 +1,4 @@
-* {
+:where(#d2l-todolist-widget) * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -8,8 +8,6 @@ html, body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
     background-color: #ffffff;
     color: #1a1a1a;
-    height: 100%;
-    overflow-x: hidden;
 }
 
 body {
@@ -145,43 +143,29 @@ body:has(#d2l-todolist-widget.hidden) {
     background-color: #ccc;
 }
 
-.d2l-todolist-toggle {
-    position: fixed;
-    top: 20px;
-    right: 0;
-    width: 36px;
-    height: 36px;
-    background-color: transparent;
+.spark-panel-toggle {
+    width: 18px;
+    height: 18px;
+    background: none;
     border: none;
     color: #1a1a1a;
-    font-size: 16px;
-    font-weight: 500;
+    font-size: 15px;
     cursor: pointer;
-    z-index: 10001;
-    border-radius: 6px;
-    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: right 0.4s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-    visibility: visible !important;
-    opacity: 1 !important;
-    margin-right: 12px;
-    margin-top: -2px;
+    padding: 0;
+    flex-shrink: 0;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
 }
 
-.d2l-todolist-toggle:hover {
+.spark-panel-toggle:hover {
     background-color: rgba(0, 0, 0, 0.08);
-    border-color: rgba(0, 0, 0, 0.16);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
-.d2l-todolist-toggle:active {
+.spark-panel-toggle:active {
     background-color: rgba(0, 0, 0, 0.16);
-}
-
-#d2l-todolist-widget.hidden .d2l-todolist-toggle:hover {
-    transform: scale(1.08) translateX(-4px);
 }
 
 #calendar-container {
@@ -603,14 +587,14 @@ body:has(#d2l-todolist-widget.hidden) {
 
 .frequency-bar {
     width: 100%;
-    background: linear-gradient(135deg, #f3aa21, #d27c19);
+    background: linear-gradient(135deg, #f6ba1d, #f6a41d);
     border-radius: 1px; 
     transition: all 0.3s ease;
     min-height: 2px;
 }
 
 .frequency-bar:hover {
-    background: linear-gradient(135deg, #f5ad27, #d68325);
+    background: linear-gradient(135deg, #f7bb26, #fcaa26);
     filter: brightness(1.1);
 }
 
