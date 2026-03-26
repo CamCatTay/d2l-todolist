@@ -68,6 +68,12 @@ chrome.runtime.onMessage.addListener(function(request) {
         togglePanel();
     }
     if (request.action === "closePanel") {
-        closePanelSilently();
+        // Only close if this tab is currently visible — that means another tab
+        // is open side-by-side (e.g. separate window). If this tab is hidden
+        // (normal tab switch), leave the panel alone so it's still there when
+        // the user comes back.
+        if (document.visibilityState === "visible") {
+            closePanelSilently();
+        }
     }
 });

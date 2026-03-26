@@ -159,15 +159,16 @@ function injectEmbeddedUI() {
         safeSendMessage({ action: "panelOpened" });
     }
 
-    // When the user switches back to this tab and the panel was silently
-    // closed by another tab, re-open it and reclaim the active slot.
+    // Handle tab visibility changes.
     document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible" && wasClosedSilently) {
+        if (document.visibilityState !== "visible") return;
+
+        if (wasClosedSilently) {
+            // This tab's panel was closed by a simultaneously-visible tab.
+            // Restore it and reclaim the active slot.
             const state = localStorage.getItem(EXPANSION_STATE_KEY);
             if (state === null || state === "true") {
                 wasClosedSilently = false;
-                // Hard-reset animation guard — any in-flight animationend handlers
-                // from the silent close are now irrelevant.
                 isAnimating = false;
                 container.style.display = "flex";
                 container.classList.remove("hidden");
@@ -175,6 +176,12 @@ function injectEmbeddedUI() {
                 safeSendMessage({ action: "panelOpened" });
                 if (_onPanelRestore) _onPanelRestore();
             }
+        } else if (container && !container.classList.contains("hidden")) {
+            // Panel was open when the user switched away — it was never closed.
+            // Reclaim the active slot (closes any other tab's panel if visible)
+            // and refresh data without any animation.
+            safeSendMessage({ action: "panelOpened" });
+            if (_onPanelRestore) _onPanelRestore();
         }
     });
 
