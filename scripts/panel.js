@@ -16,10 +16,9 @@ function safeSendMessage(message, callback) {
 }
 
 let panelWidth = 350;
-let container, toggleBtn;
+let container;
 let isAnimating = false;
 let isDataStale = false;
-let scrollbarWidth = 0;
 // True when the panel was closed by another tab taking over (not by the user).
 let wasClosedSilently = false;
 // Callback invoked when the panel is restored after a silent close.
@@ -33,25 +32,6 @@ function updateBodyMargin() {
     document.body.style.marginRight = panelWidth + "px";
 }
 
-function updateToggleButtonPosition() {
-    if (!toggleBtn) return;
-
-    const isHidden = container && container.classList.contains("hidden");
-
-    if (isHidden) {
-        toggleBtn.style.right = scrollbarWidth + "px";
-    } else {
-        // Place button inside the panel at its top-left corner.
-        // Accounts for: 8px inner padding + 36px button width + 12px CSS margin-right.
-        toggleBtn.style.right = (panelWidth - 56) + "px";
-    }
-}
-
-function updateToggleButtonState(btn, isExpanded) {
-    btn.textContent = isExpanded ? "▶" : "◀";
-    btn.title = isExpanded ? "Collapse Calendar" : "Expand Calendar";
-}
-
 function togglePanel() {
     if (!container || isAnimating) return;
     isAnimating = true;
@@ -59,8 +39,6 @@ function togglePanel() {
     container.classList.toggle("hidden");
     const isHidden = container.classList.contains("hidden");
     localStorage.setItem(EXPANSION_STATE_KEY, isHidden ? "false" : "true");
-    updateToggleButtonState(toggleBtn, !isHidden);
-    updateToggleButtonPosition();
 
     wasClosedSilently = false;
     safeSendMessage({ action: isHidden ? "panelClosed" : "panelOpened" });
@@ -88,8 +66,6 @@ function closePanelSilently() {
     wasClosedSilently = true;
     container.classList.add("hidden");
     container.style.display = "none";
-    updateToggleButtonState(toggleBtn, false);
-    updateToggleButtonPosition();
     document.body.style.marginRight = "0";
 }
 
@@ -111,14 +87,6 @@ function createEmbeddedCalendarUI() {
     panel.appendChild(resizeHandle);
     panel.appendChild(calendarContainer);
     newContainer.appendChild(panel);
-
-    const newToggleBtn = document.createElement("button");
-    newToggleBtn.id = "d2l-todolist-toggle";
-    newToggleBtn.className = "d2l-todolist-toggle";
-    newToggleBtn.textContent = "◀";
-    newToggleBtn.title = "Toggle Calendar";
-
-    newToggleBtn.addEventListener("click", togglePanel);
 
     // Resize functionality
     let isResizing = false;
@@ -143,7 +111,6 @@ function createEmbeddedCalendarUI() {
         newContainer.style.width = newWidth + "px";
         panel.style.width = newWidth + "px";
         updateBodyMargin();
-        updateToggleButtonPosition();
 
         localStorage.setItem(PANEL_WIDTH_KEY, newWidth.toString());
     });
@@ -156,24 +123,20 @@ function createEmbeddedCalendarUI() {
         }
     });
 
-    return { container: newContainer, calendarContainer, toggleBtn: newToggleBtn, panel };
+    return { container: newContainer, calendarContainer, panel };
 }
 
 function injectEmbeddedUI() {
     const existing = document.getElementById("d2l-todolist-widget");
     if (existing) existing.remove();
 
-    const existingToggleBtn = document.getElementById("d2l-todolist-toggle");
-    if (existingToggleBtn) existingToggleBtn.remove();
-
     const savedWidth = localStorage.getItem(PANEL_WIDTH_KEY);
     if (savedWidth) {
         panelWidth = parseInt(savedWidth, 10);
     }
 
-    const { container: newContainer, calendarContainer, toggleBtn: newToggleBtn } = createEmbeddedCalendarUI();
+    const { container: newContainer, calendarContainer } = createEmbeddedCalendarUI();
     container = newContainer;
-    toggleBtn = newToggleBtn;
 
     const savedState = localStorage.getItem(EXPANSION_STATE_KEY);
     const shouldShowPanel = savedState === null || savedState === "true";
@@ -183,16 +146,13 @@ function injectEmbeddedUI() {
         container.classList.add("hidden");
     }
 
-    updateToggleButtonState(toggleBtn, shouldShowPanel);
     if (shouldShowPanel) {
         updateBodyMargin();
     } else {
         document.body.style.marginRight = "0";
     }
 
-    document.body.appendChild(toggleBtn);
     document.body.appendChild(container);
-    updateToggleButtonPosition();
 
     // Claim the active panel slot if starting visible.
     if (shouldShowPanel) {
@@ -211,9 +171,7 @@ function injectEmbeddedUI() {
                 isAnimating = false;
                 container.style.display = "flex";
                 container.classList.remove("hidden");
-                updateToggleButtonState(toggleBtn, true);
                 updateBodyMargin();
-                updateToggleButtonPosition();
                 safeSendMessage({ action: "panelOpened" });
                 if (_onPanelRestore) _onPanelRestore();
             }

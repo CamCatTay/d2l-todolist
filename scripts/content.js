@@ -6,10 +6,6 @@ window.addEventListener("load", () => {
     const calendarContainer = injectEmbeddedUI();
     initializeGUI();
 
-    // Calculate and store scrollbar width
-    scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-    updateToggleButtonPosition();
-
     // Persist scroll position: save on scroll (debounced 300 ms)
     let scrollSaveTimer = null;
     calendarContainer.addEventListener("scroll", () => {

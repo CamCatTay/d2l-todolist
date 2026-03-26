@@ -324,6 +324,16 @@ function createFrequencyChart(calendarContainer, itemsByDate) {
     const weekLabel = document.createElement("div");
     weekLabel.className = "frequency-chart-week-label";
     weekLabel.id = "frequency-chart-week-label";
+    const panelToggleBtn = document.createElement("button");
+    panelToggleBtn.className = "spark-panel-toggle";
+    panelToggleBtn.title = "Close panel";
+    panelToggleBtn.textContent = "\u25b6";
+    panelToggleBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        togglePanel();
+    });
+    weekLabelRow.appendChild(panelToggleBtn);
+
     weekLabelRow.appendChild(weekLabel);
 
     const faqBtn = document.createElement("button");
