@@ -1,5 +1,6 @@
 const COURSE_DATA_KEY = "courseData";
 const LAST_FETCHED_KEY = "spark-last-fetched";
+let fetchInFlight = false;
 
 window.addEventListener("load", () => {
     let courseData = {};
@@ -34,7 +35,7 @@ window.addEventListener("load", () => {
     // tab, re-render the in-memory data so the panel is never blank.
     registerPanelRestoreCallback(() => {
         if (courseData && Object.keys(courseData).length > 0) {
-            updateGUI(courseData, false);
+            updateGUI(courseData, fetchInFlight);
             restoreScrollPosition();
         }
     });
@@ -52,7 +53,9 @@ window.addEventListener("load", () => {
     });
 
     // Fetch fresh data from API
+    fetchInFlight = true;
     safeSendMessage({ action: "fetchCourses" }, function(response) {
+        fetchInFlight = false;
         if (response) {
             courseData = JSON.parse(JSON.stringify(response));
             lastFetchedTime = new Date();
@@ -74,7 +77,7 @@ chrome.runtime.onMessage.addListener(function(request) {
                 lastFetchedTime = new Date(result[LAST_FETCHED_KEY]);
             }
             if (result.courseData) {
-                updateGUI(JSON.parse(JSON.stringify(result.courseData)), false);
+                updateGUI(JSON.parse(JSON.stringify(result.courseData)), fetchInFlight);
             }
         });
     }
