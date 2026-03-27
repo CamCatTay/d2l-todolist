@@ -424,6 +424,8 @@ function renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, weekO
             const dayDate = new Date(displayWeekStart);
             dayDate.setDate(dayDate.getDate() + i);
             const dateKey = getDateKey(dayDate);
+            // Count only incomplete items for the frequency chart to reflect actionable workload
+            // In the future this could be a user setting to toggle completed items on/off in the chart
             const count = itemsByDate[dateKey]?.filter(({ item }) => !item.completed).length || 0;
             weekCounts[i] = count;
             maxCount = Math.max(maxCount, count);
