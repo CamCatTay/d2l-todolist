@@ -14,6 +14,11 @@ const COURSE_NAME_TRIM_WORDS = [
 // Set to 0 to start from today; increase to show past items.
 const CALENDAR_START_DAYS_BACK = 30;
 
+// Toggle to show/hide the "Last fetched" timestamp in the frequency chart.
+const SHOW_LAST_FETCHED = true;
+
+let lastFetchedTime = null;
+
 function truncateCourseName(name) {
     if (!name) return name;
     const pattern = COURSE_NAME_TRIM_WORDS
@@ -356,6 +361,15 @@ function createFrequencyChart(calendarContainer, itemsByDate, initialWeekOffset 
     chartRow.appendChild(grid);
     chartRow.appendChild(nextBtn);
     chartContainer.appendChild(chartRow);
+
+    if (SHOW_LAST_FETCHED) {
+        const lastFetchedEl = document.createElement("div");
+        lastFetchedEl.className = "frequency-chart-last-fetched";
+        lastFetchedEl.textContent = lastFetchedTime
+            ? "Last fetched: " + lastFetchedTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+            : "Last fetched: —";
+        chartContainer.appendChild(lastFetchedEl);
+    }
 
     // Initial render
     try {

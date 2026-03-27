@@ -100,6 +100,13 @@ body.d2l-todolist-compact {
     margin: 0 -12px -10px;
 }
 
+.frequency-chart-last-fetched {
+    font-size: 10px;
+    color: #aaa;
+    text-align: left;
+    margin-top: 4px;
+}
+
 .data-status-indicator.loading {
     background-color: #fff8e1;
     color: #d68d00;

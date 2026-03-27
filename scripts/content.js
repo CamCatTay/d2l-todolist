@@ -51,6 +51,7 @@ window.addEventListener("load", () => {
     safeSendMessage({ action: "fetchCourses" }, function(response) {
         if (response) {
             courseData = JSON.parse(JSON.stringify(response));
+            lastFetchedTime = new Date();
 
             chrome.storage.local.set({ courseData: courseData }, function() {
                 updateGUI(courseData, false);
