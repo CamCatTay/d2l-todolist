@@ -104,7 +104,7 @@ body.d2l-todolist-compact {
     font-size: 10px;
     color: #aaa;
     text-align: left;
-    margin-top: 4px;
+    margin-top: 0px;
 }
 
 .data-status-indicator.loading {
