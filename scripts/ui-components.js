@@ -374,6 +374,8 @@ function createFrequencyChart(calendarContainer, itemsByDate, initialWeekOffset 
     refreshBtn.textContent = "↻";
     refreshBtn.addEventListener("click", (e) => {
         e.stopPropagation();
+        refreshBtn.classList.add("spinning");
+        refreshBtn.addEventListener("animationend", () => refreshBtn.classList.remove("spinning"), { once: true });
         if (typeof triggerRefresh === 'function') triggerRefresh();
     });
     weekLabelRow.appendChild(refreshBtn);
