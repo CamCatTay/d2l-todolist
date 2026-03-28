@@ -12,7 +12,7 @@ const COURSE_NAME_TRIM_WORDS = [
 
 // How many days before today the calendar should start.
 // Set to 0 to start from today; increase to show past items.
-const CALENDAR_START_DAYS_BACK = 30;
+const CALENDAR_START_DAYS_BACK = 7;
 
 // Toggle to show/hide the "Last fetched" timestamp in the frequency chart.
 const SHOW_LAST_FETCHED = true;
