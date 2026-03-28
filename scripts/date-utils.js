@@ -2,7 +2,7 @@ function formatTimeFromDate(dateString) {
     if (!dateString) return "No time";
     try {
         const date = new Date(dateString);
-        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     } catch (e) {
         return "No time";
     }
@@ -14,8 +14,8 @@ function formatFullDatetime(dateString) {
         const date = new Date(dateString);
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const dateStr = `${monthNames[date.getMonth()]} ${date.getDate()}`;
-        const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-        return `${dateStr} at ${timeStr}`;
+        const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        return `${dateStr}, ${timeStr}`;
     } catch (e) {
         return "No date";
     }

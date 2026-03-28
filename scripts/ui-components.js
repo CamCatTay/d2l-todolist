@@ -116,7 +116,7 @@ function createAssignmentElement(assignment, course) {
 
         const startDateValue = document.createElement("span");
         startDateValue.className = "start-date-value";
-        startDateValue.textContent = formatFullDatetime(assignment.startDate);
+        startDateValue.textContent = "Available on " + formatFullDatetime(assignment.startDate);
         startDateContainer.appendChild(startDateValue);
 
         itemMeta.appendChild(startDateContainer);
