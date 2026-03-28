@@ -1,11 +1,17 @@
 const COURSE_DATA_KEY = "courseData";
 const LAST_FETCHED_KEY = "spark-last-fetched";
+const SETTINGS_OPEN_KEY = "spark-settings-open";
 let fetchInFlight = false;
 let globalFetchInFlight = false; // true when another tab's fetch is still running
 let _refreshFn = null;
+let _reRenderFn = null;
 
 function triggerRefresh() {
     if (_refreshFn) _refreshFn();
+}
+
+function triggerReRender() {
+    if (_reRenderFn) _reRenderFn();
 }
 
 window.addEventListener("load", () => {
@@ -44,10 +50,24 @@ window.addEventListener("load", () => {
             updateGUI(courseData, fetchInFlight || globalFetchInFlight);
             restoreScrollPosition();
         }
+        // Re-apply the current settings panel state now that the panel is visible again.
+        chrome.storage.local.get([SETTINGS_OPEN_KEY], function(result) {
+            let sp = document.getElementById("spark-settings-panel");
+            if (result[SETTINGS_OPEN_KEY]) {
+                if (!sp) {
+                    sp = buildSettingsPanel();
+                    document.body.appendChild(sp);
+                }
+                sp.style.right = (typeof panelWidth !== "undefined" ? panelWidth : 350) + "px";
+                sp.classList.add("open");
+            } else if (sp) {
+                sp.classList.remove("open");
+            }
+        });
     });
 
     // Load stored data first for immediate display
-    chrome.storage.local.get([COURSE_DATA_KEY, LAST_FETCHED_KEY], function(result) {
+    chrome.storage.local.get([COURSE_DATA_KEY, LAST_FETCHED_KEY, SETTINGS_OPEN_KEY], function(result) {
         if (result[LAST_FETCHED_KEY]) {
             lastFetchedTime = new Date(result[LAST_FETCHED_KEY]);
         }
@@ -55,6 +75,15 @@ window.addEventListener("load", () => {
             courseData = JSON.parse(JSON.stringify(result.courseData));
             updateGUI(courseData, true);
             restoreScrollPosition();
+        }
+        if (result[SETTINGS_OPEN_KEY]) {
+            let sp = document.getElementById("spark-settings-panel");
+            if (!sp) {
+                sp = buildSettingsPanel();
+                document.body.appendChild(sp);
+            }
+            sp.style.right = (typeof panelWidth !== "undefined" ? panelWidth : 350) + "px";
+            sp.classList.add("open");
         }
     });
 
@@ -77,6 +106,13 @@ window.addEventListener("load", () => {
                 });
             }
         });
+    };
+
+    // Re-render with current in-memory data (used when settings change)
+    _reRenderFn = function() {
+        if (courseData && Object.keys(courseData).length > 0) {
+            updateGUI(courseData, fetchInFlight || globalFetchInFlight);
+        }
     };
 
     // Fetch fresh data from API
@@ -114,6 +150,25 @@ chrome.runtime.onMessage.addListener(function(request) {
         // the user comes back.
         if (document.visibilityState === "visible") {
             closePanelSilently();
+            const sp = document.getElementById("spark-settings-panel");
+            if (sp) sp.classList.remove("open");
         }
+    }
+    if (request.action === "settingsOpened") {
+        // Don't open the settings panel on a tab whose main panel is currently hidden
+        // (e.g. the inactive side of a split-screen setup).
+        const widget = document.getElementById("d2l-todolist-widget");
+        if (!widget || widget.classList.contains("hidden") || widget.style.display === "none") return;
+        let settingsPanel = document.getElementById("spark-settings-panel");
+        if (!settingsPanel) {
+            settingsPanel = buildSettingsPanel();
+            document.body.appendChild(settingsPanel);
+        }
+        settingsPanel.style.right = (typeof panelWidth !== "undefined" ? panelWidth : 350) + "px";
+        settingsPanel.classList.add("open");
+    }
+    if (request.action === "settingsClosed") {
+        const settingsPanel = document.getElementById("spark-settings-panel");
+        if (settingsPanel) settingsPanel.classList.remove("open");
     }
 });

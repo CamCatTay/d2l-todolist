@@ -12,7 +12,9 @@ const COURSE_NAME_TRIM_WORDS = [
 
 // How many days before today the calendar should start.
 // Set to 0 to start from today; increase to show past items.
-const CALENDAR_START_DAYS_BACK = 7;
+const CALENDAR_START_DAYS_BACK_STORAGE_KEY = "d2l-todolist-calendar-start-days-back";
+let CALENDAR_START_DAYS_BACK = parseInt(localStorage.getItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY) ?? "7", 10);
+if (!Number.isFinite(CALENDAR_START_DAYS_BACK) || CALENDAR_START_DAYS_BACK < 0) CALENDAR_START_DAYS_BACK = 7;
 
 // Toggle to show/hide the "Last fetched" timestamp in the frequency chart.
 const SHOW_LAST_FETCHED = true;
@@ -361,10 +363,18 @@ function createFrequencyChart(calendarContainer, itemsByDate, initialWeekOffset 
     const settingsBtn = document.createElement("button");
     settingsBtn.className = "spark-settings-btn";
     settingsBtn.title = "Settings";
-    settingsBtn.textContent = "▷";
+    settingsBtn.textContent = "⚙";
     settingsBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        safeSendMessage({ action: "openSettings" });
+        let settingsPanel = document.getElementById("spark-settings-panel");
+        if (!settingsPanel) {
+            settingsPanel = buildSettingsPanel();
+            document.body.appendChild(settingsPanel);
+        }
+        settingsPanel.classList.toggle("open");
+        settingsPanel.style.right = (typeof panelWidth !== "undefined" ? panelWidth : 350) + "px";
+        const isOpen = settingsPanel.classList.contains("open");
+        safeSendMessage({ action: isOpen ? "broadcastSettingsOpened" : "broadcastSettingsClosed" });
     });
     weekLabelRow.appendChild(settingsBtn);
 
@@ -411,7 +421,7 @@ function createFrequencyChart(calendarContainer, itemsByDate, initialWeekOffset 
         const lastFetchedEl = document.createElement("div");
         lastFetchedEl.className = "frequency-chart-last-fetched";
         lastFetchedEl.textContent = lastFetchedTime
-            ? "Last fetched: " + lastFetchedTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+            ? "Last fetched: " + lastFetchedTime.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })
             : "Last fetched: —";
         chartContainer.appendChild(lastFetchedEl);
     }
@@ -620,4 +630,60 @@ function updateFrequencyNavButtons(chartContainer) {
     } catch (e) {
         console.error("Error updating frequency nav buttons:", e);
     }
+}
+
+function buildSettingsPanel() {
+    const panel = document.createElement("div");
+    panel.id = "spark-settings-panel";
+
+    // Header
+    const header = document.createElement("div");
+    header.className = "settings-header";
+
+    const title = document.createElement("span");
+    title.className = "settings-title";
+    title.textContent = "Settings";
+
+    header.appendChild(title);
+    panel.appendChild(header);
+
+    // Body
+    const body = document.createElement("div");
+    body.className = "settings-body";
+
+    // CALENDAR_START_DAYS_BACK setting
+    const section = document.createElement("div");
+    section.className = "settings-section";
+
+    const label = document.createElement("label");
+    label.className = "settings-label";
+    label.htmlFor = "spark-setting-days-back";
+    label.textContent = "Calendar look-back days";
+
+    const description = document.createElement("p");
+    description.className = "settings-description";
+    description.textContent = "How many days before today the calendar starts showing items. Set to 0 to start from today.";
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.id = "spark-setting-days-back";
+    input.className = "settings-input";
+    input.min = "0";
+    input.max = "365";
+    input.value = CALENDAR_START_DAYS_BACK.toString();
+    input.addEventListener("change", () => {
+        const val = Math.max(0, Math.min(365, parseInt(input.value, 10) || 0));
+        input.value = val.toString();
+        CALENDAR_START_DAYS_BACK = val;
+        localStorage.setItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY, val.toString());
+        if (typeof triggerReRender === "function") triggerReRender();
+    });
+
+    section.appendChild(label);
+    section.appendChild(description);
+    section.appendChild(input);
+    body.appendChild(section);
+    panel.appendChild(body);
+
+    return panel;
 }

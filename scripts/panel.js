@@ -18,6 +18,7 @@ function safeSendMessage(message, callback) {
 let panelWidth = 350;
 let container;
 let isAnimating = false;
+let settingsWasOpen = false;
 let isDataStale = false;
 // True when the panel was closed by another tab taking over (not by the user).
 let wasClosedSilently = false;
@@ -36,25 +37,61 @@ function togglePanel() {
     if (!container || isAnimating) return;
     isAnimating = true;
 
-    container.classList.toggle("hidden");
-    const isHidden = container.classList.contains("hidden");
-    localStorage.setItem(EXPANSION_STATE_KEY, isHidden ? "false" : "true");
+    const willHide = !container.classList.contains("hidden");
 
-    wasClosedSilently = false;
-    safeSendMessage({ action: isHidden ? "panelClosed" : "panelOpened" });
+    if (willHide) {
+        // If closing, check if settings panel is open first
+        const sp = document.getElementById("spark-settings-panel");
+        const settingsOpen = sp && sp.classList.contains("open");
 
-    if (isHidden) {
-        document.body.style.marginRight = "0";
-        const animationHandler = () => {
-            container.style.display = "none";
-            container.removeEventListener("animationend", animationHandler);
-            isAnimating = false;
+        const doClose = () => {
+            container.classList.add("hidden");
+            localStorage.setItem(EXPANSION_STATE_KEY, "false");
+            wasClosedSilently = false;
+            safeSendMessage({ action: "panelClosed" });
+            document.body.style.marginRight = "0";
+            const animationHandler = () => {
+                container.style.display = "none";
+                container.removeEventListener("animationend", animationHandler);
+                isAnimating = false;
+            };
+            container.addEventListener("animationend", animationHandler);
         };
-        container.addEventListener("animationend", animationHandler);
+
+        if (settingsOpen) {
+            settingsWasOpen = true;
+            sp.classList.remove("open");
+            setTimeout(doClose, 250);
+        } else {
+            settingsWasOpen = false;
+            doClose();
+        }
     } else {
+        container.classList.remove("hidden");
+        localStorage.setItem(EXPANSION_STATE_KEY, "true");
+        wasClosedSilently = false;
+        safeSendMessage({ action: "panelOpened" });
         container.style.display = "flex";
         updateBodyMargin();
-        isAnimating = false;
+
+        if (settingsWasOpen) {
+            settingsWasOpen = false;
+            // Wait for the panel slide-in to finish before opening settings
+            setTimeout(() => {
+                let sp = document.getElementById("spark-settings-panel");
+                if (!sp) {
+                    sp = buildSettingsPanel();
+                    document.body.appendChild(sp);
+                }
+                sp.style.right = (typeof panelWidth !== "undefined" ? panelWidth : 350) + "px";
+                sp.classList.add("open");
+                // Settings transition completes after another 250ms
+                setTimeout(() => { isAnimating = false; }, 250);
+            }, 400);
+        } else {
+            // Panel slide-in is ~400ms
+            setTimeout(() => { isAnimating = false; }, 400);
+        }
     }
 }
 
@@ -67,6 +104,8 @@ function closePanelSilently() {
     container.classList.add("hidden");
     container.style.display = "none";
     document.body.style.marginRight = "0";
+    const sp = document.getElementById("spark-settings-panel");
+    if (sp) sp.classList.remove("open");
 }
 
 function createEmbeddedCalendarUI() {
@@ -111,6 +150,9 @@ function createEmbeddedCalendarUI() {
         newContainer.style.width = newWidth + "px";
         panel.style.width = newWidth + "px";
         updateBodyMargin();
+
+        const sp = document.getElementById("spark-settings-panel");
+        if (sp) sp.style.right = newWidth + "px";
 
         localStorage.setItem(PANEL_WIDTH_KEY, newWidth.toString());
     });
