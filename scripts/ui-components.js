@@ -18,10 +18,10 @@ const CALENDAR_START_DAYS_BACK = 30;
 const SHOW_LAST_FETCHED = true;
 
 // Color applied to due times when the item is due today.
-const DUE_TODAY_COLOR = "#f6ce1d";
+const DUE_TODAY_COLOR = "#e8900c";
 
 // Color applied to due times when the item is due tomorrow.
-const DUE_TOMORROW_COLOR = "#e8900c";
+const DUE_TOMORROW_COLOR = "#e7c21d";
 
 // Color applied to due times when the item is incomplete and past due.
 const OVERDUE_COLOR = "#e84040";
