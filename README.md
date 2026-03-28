@@ -40,7 +40,7 @@ Results are displayed in a persistent side panel so you can stay oriented withou
 - [x] Side panel with due date display
 - [x] Frequency graph to see what days of the week are the most dense
 - [x] Color coded course names and notch indicators on scroll bar
-- [ ] Color-coded urgency indicators (due soon, overdue)
+- [x] Color-coded urgency indicators (due soon, overdue)
 - [ ] Grade display alongside assignments
 - [ ] Notifications / reminders for upcoming deadlines
 - [ ] Export to calendar (Google Calendar / .ics)
