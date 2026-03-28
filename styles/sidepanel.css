@@ -513,6 +513,13 @@ body:has(#d2l-todolist-widget.hidden) {
     flex: 1;
 }
 
+.spark-btn-spacer {
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    pointer-events: none;
+}
+
 .faq-btn {
     width: 30px;
     height: 30px;

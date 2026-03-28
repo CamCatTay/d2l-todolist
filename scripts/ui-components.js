@@ -381,6 +381,10 @@ function createFrequencyChart(calendarContainer, itemsByDate, initialWeekOffset 
     // Week label is added above buttons so it stays left-aligned while buttons below are right-aligned
     weekLabelRow.appendChild(weekLabel);
 
+    const faqSpacer = document.createElement("div");
+    faqSpacer.className = "spark-btn-spacer";
+    weekLabelRow.appendChild(faqSpacer);
+
     const faqBtn = document.createElement("button");
     faqBtn.className = "faq-btn";
     faqBtn.title = "Help / FAQ";
