@@ -188,9 +188,7 @@ function createAssignmentElement(assignment, course) {
 }
 
 function initializeGUI() {
-    const calendarContainer = document.getElementById("calendar-container");
-    if (!calendarContainer) return;
-    addDataStatusIndicator(true);
+    updateGUI({}, true);
 }
 
 function addDataStatusIndicator(isStale) {
@@ -261,19 +259,7 @@ function updateGUI(courseData, isFromCache = false) {
         });
     });
 
-    // Empty state
-    if (!minDate || !maxDate) {
-        const existingIndicator = calendarContainer.parentElement.querySelector(".scrollbar-indicator");
-        if (existingIndicator) existingIndicator.remove();
-        const emptyMessage = document.createElement("div");
-        emptyMessage.id = "loading-indicator";
-        emptyMessage.textContent = "No upcoming assignments";
-        calendarContainer.appendChild(emptyMessage);
-        if (isFromCache) addDataStatusIndicator(true);
-        return;
-    }
-
-    // Create frequency chart at the top
+    // Always create frequency chart (contains settings, refresh, and FAQ buttons)
     try {
         if (typeof createFrequencyChart === 'function' && typeof getWeekStart === 'function' && typeof getDateKey === 'function') {
             createFrequencyChart(calendarContainer, itemsByDate, preservedWeekOffset);
@@ -284,6 +270,17 @@ function updateGUI(courseData, isFromCache = false) {
 
     if (isFromCache) {
         addDataStatusIndicator(true);
+    }
+
+    // Empty state — chart is already rendered above for the buttons and loading indicator
+    if (!minDate || !maxDate) {
+        const existingIndicator = calendarContainer.parentElement.querySelector(".scrollbar-indicator");
+        if (existingIndicator) existingIndicator.remove();
+        const emptyMessage = document.createElement("div");
+        emptyMessage.id = "loading-indicator";
+        emptyMessage.textContent = "No upcoming assignments";
+        calendarContainer.appendChild(emptyMessage);
+        return;
     }
 
     // Generate calendar from CALENDAR_START_DAYS_BACK days before today to maxDate
