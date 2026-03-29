@@ -18,6 +18,15 @@ if (!Number.isFinite(CALENDAR_START_DAYS_BACK) || CALENDAR_START_DAYS_BACK < 0) 
 
 const HIDDEN_COURSES_KEY = "d2l-todolist-hidden-courses";
 let hiddenCourseIds = new Set(JSON.parse(localStorage.getItem(HIDDEN_COURSES_KEY) || "[]"));
+
+const HIDDEN_TYPES_KEY = "d2l-todolist-hidden-types";
+let hiddenTypes = new Set(JSON.parse(localStorage.getItem(HIDDEN_TYPES_KEY) || "[]"));
+const ITEM_TYPES = [
+    { key: "assignments", label: "Assignments" },
+    { key: "quizzes", label: "Quizzes" },
+    { key: "discussions", label: "Discussions" },
+];
+
 let _lastCourseData = {};
 
 // Toggle to show/hide the "Last fetched" timestamp in the frequency chart.
@@ -234,12 +243,13 @@ function updateGUI(courseData, isFromCache = false) {
         if (hiddenCourseIds.has(courseId)) return;
 
         const itemCollections = [
-            { items: course.assignments, showCompleted: true },
-            { items: course.quizzes, showCompleted: true },
-            { items: course.discussions, showCompleted: true }
+            { items: course.assignments, type: "assignments", showCompleted: true },
+            { items: course.quizzes, type: "quizzes", showCompleted: true },
+            { items: course.discussions, type: "discussions", showCompleted: true }
         ];
 
-        itemCollections.forEach(({ items, showCompleted }) => {
+        itemCollections.forEach(({ items, type, showCompleted }) => {
+            if (hiddenTypes.has(type)) return;
             if (items) {
                 Object.keys(items).forEach((itemId) => {
                     const item = items[itemId];
@@ -690,6 +700,53 @@ function buildSettingsPanel() {
     section.appendChild(description);
     section.appendChild(input);
     body.appendChild(section);
+
+    // Assignment types section
+    const typesSection = document.createElement("div");
+    typesSection.className = "settings-section";
+
+    const typesLabel = document.createElement("div");
+    typesLabel.className = "settings-label";
+    typesLabel.textContent = "Visible assignment types";
+
+    const typesDescription = document.createElement("p");
+    typesDescription.className = "settings-description";
+    typesDescription.textContent = "Uncheck a type to hide it from the calendar.";
+
+    const typesList = document.createElement("div");
+    typesList.className = "settings-courses-list";
+
+    ITEM_TYPES.forEach(({ key, label: typeLabel }) => {
+        const row = document.createElement("label");
+        row.className = "settings-course-row";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "settings-course-checkbox";
+        checkbox.checked = !hiddenTypes.has(key);
+        checkbox.addEventListener("change", () => {
+            if (checkbox.checked) {
+                hiddenTypes.delete(key);
+            } else {
+                hiddenTypes.add(key);
+            }
+            localStorage.setItem(HIDDEN_TYPES_KEY, JSON.stringify([...hiddenTypes]));
+            if (typeof triggerReRender === "function") triggerReRender();
+        });
+
+        const name = document.createElement("span");
+        name.className = "settings-course-name";
+        name.textContent = typeLabel;
+
+        row.appendChild(checkbox);
+        row.appendChild(name);
+        typesList.appendChild(row);
+    });
+
+    typesSection.appendChild(typesLabel);
+    typesSection.appendChild(typesDescription);
+    typesSection.appendChild(typesList);
+    body.appendChild(typesSection);
 
     // Courses section (populated by updateSettingsCourseList)
     const coursesSection = document.createElement("div");
