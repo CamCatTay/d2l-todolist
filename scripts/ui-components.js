@@ -649,6 +649,39 @@ function updateFrequencyNavButtons(chartContainer) {
     }
 }
 
+// Returns a plain object snapshot of all user-configurable settings.
+function getAllSettings() {
+    return {
+        daysBack: CALENDAR_START_DAYS_BACK,
+        hiddenCourses: [...hiddenCourseIds],
+        hiddenTypesArr: [...hiddenTypes],
+    };
+}
+
+// Applies a settings object (from chrome.storage or a broadcast message) to
+// in-memory state, localStorage, and any currently-open settings panel UI.
+function applySettings({ daysBack, hiddenCourses, hiddenTypesArr }) {
+    CALENDAR_START_DAYS_BACK = daysBack;
+    hiddenCourseIds = new Set(hiddenCourses);
+    hiddenTypes = new Set(hiddenTypesArr);
+
+    // Keep localStorage in sync so the initial module-level reads stay warm.
+    localStorage.setItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY, daysBack.toString());
+    localStorage.setItem(HIDDEN_COURSES_KEY, JSON.stringify(hiddenCourses));
+    localStorage.setItem(HIDDEN_TYPES_KEY, JSON.stringify(hiddenTypesArr));
+
+    // Sync the settings panel UI if it is currently rendered.
+    const daysInput = document.getElementById("spark-setting-days-back");
+    if (daysInput) daysInput.value = daysBack.toString();
+
+    ITEM_TYPES.forEach(({ key }) => {
+        const cb = document.querySelector(`.settings-course-checkbox[data-setting-type="${key}"]`);
+        if (cb) cb.checked = !hiddenTypes.has(key);
+    });
+
+    updateSettingsCourseList(_lastCourseData);
+}
+
 function buildSettingsPanel() {
     const panel = document.createElement("div");
     panel.id = "spark-settings-panel";
@@ -693,6 +726,7 @@ function buildSettingsPanel() {
         input.value = val.toString();
         CALENDAR_START_DAYS_BACK = val;
         localStorage.setItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY, val.toString());
+        if (typeof safeSendMessage === "function") safeSendMessage({ action: "broadcastSettingsChanged", settings: getAllSettings() });
         if (typeof triggerReRender === "function") triggerReRender();
     });
 
@@ -723,6 +757,7 @@ function buildSettingsPanel() {
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.className = "settings-course-checkbox";
+        checkbox.dataset.settingType = key;
         checkbox.checked = !hiddenTypes.has(key);
         checkbox.addEventListener("change", () => {
             if (checkbox.checked) {
@@ -731,6 +766,7 @@ function buildSettingsPanel() {
                 hiddenTypes.add(key);
             }
             localStorage.setItem(HIDDEN_TYPES_KEY, JSON.stringify([...hiddenTypes]));
+            if (typeof safeSendMessage === "function") safeSendMessage({ action: "broadcastSettingsChanged", settings: getAllSettings() });
             if (typeof triggerReRender === "function") triggerReRender();
         });
 
@@ -807,6 +843,7 @@ function updateSettingsCourseList(courseData, listEl = null) {
                 hiddenCourseIds.add(courseId);
             }
             localStorage.setItem(HIDDEN_COURSES_KEY, JSON.stringify([...hiddenCourseIds]));
+            if (typeof safeSendMessage === "function") safeSendMessage({ action: "broadcastSettingsChanged", settings: getAllSettings() });
             if (typeof triggerReRender === "function") triggerReRender();
         });
 

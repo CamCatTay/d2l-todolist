@@ -1,6 +1,7 @@
 const COURSE_DATA_KEY = "courseData";
 const LAST_FETCHED_KEY = "spark-last-fetched";
 const SETTINGS_OPEN_KEY = "spark-settings-open";
+const SETTINGS_VALUE_KEY = "spark-user-settings";
 let fetchInFlight = false;
 let globalFetchInFlight = false; // true when another tab's fetch is still running
 let _refreshFn = null;
@@ -46,12 +47,16 @@ window.addEventListener("load", () => {
     // When this tab's panel is restored after being silently closed by another
     // tab, re-render the in-memory data so the panel is never blank.
     registerPanelRestoreCallback(() => {
-        if (courseData && Object.keys(courseData).length > 0) {
-            updateGUI(courseData, fetchInFlight || globalFetchInFlight);
-            restoreScrollPosition();
-        }
-        // Re-apply the current settings panel state now that the panel is visible again.
-        chrome.storage.local.get([SETTINGS_OPEN_KEY], function(result) {
+        // Re-apply settings then re-render so display is correct even if settings
+        // changed on another tab while this panel was silently closed.
+        chrome.storage.local.get([SETTINGS_OPEN_KEY, SETTINGS_VALUE_KEY], function(result) {
+            if (result[SETTINGS_VALUE_KEY]) {
+                applySettings(result[SETTINGS_VALUE_KEY]);
+            }
+            if (courseData && Object.keys(courseData).length > 0) {
+                updateGUI(courseData, fetchInFlight || globalFetchInFlight);
+                restoreScrollPosition();
+            }
             let sp = document.getElementById("spark-settings-panel");
             if (result[SETTINGS_OPEN_KEY]) {
                 if (!sp) {
@@ -67,7 +72,10 @@ window.addEventListener("load", () => {
     });
 
     // Load stored data first for immediate display
-    chrome.storage.local.get([COURSE_DATA_KEY, LAST_FETCHED_KEY, SETTINGS_OPEN_KEY], function(result) {
+    chrome.storage.local.get([COURSE_DATA_KEY, LAST_FETCHED_KEY, SETTINGS_OPEN_KEY, SETTINGS_VALUE_KEY], function(result) {
+        if (result[SETTINGS_VALUE_KEY]) {
+            applySettings(result[SETTINGS_VALUE_KEY]);
+        }
         if (result[LAST_FETCHED_KEY]) {
             lastFetchedTime = new Date(result[LAST_FETCHED_KEY]);
         }
@@ -171,5 +179,9 @@ chrome.runtime.onMessage.addListener(function(request) {
     if (request.action === "settingsClosed") {
         const settingsPanel = document.getElementById("spark-settings-panel");
         if (settingsPanel) settingsPanel.classList.remove("open");
+    }
+    if (request.action === "settingsChanged") {
+        applySettings(request.settings);
+        triggerReRender();
     }
 });
