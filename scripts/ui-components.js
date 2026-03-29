@@ -18,6 +18,7 @@ if (!Number.isFinite(CALENDAR_START_DAYS_BACK) || CALENDAR_START_DAYS_BACK < 0) 
 
 const HIDDEN_COURSES_KEY = "d2l-todolist-hidden-courses";
 let hiddenCourseIds = new Set(JSON.parse(localStorage.getItem(HIDDEN_COURSES_KEY) || "[]"));
+let _lastCourseData = {};
 
 // Toggle to show/hide the "Last fetched" timestamp in the frequency chart.
 const SHOW_LAST_FETCHED = true;
@@ -212,6 +213,7 @@ function updateGUI(courseData, isFromCache = false) {
     const calendarContainer = document.getElementById("calendar-container");
     if (!calendarContainer) return;
 
+    _lastCourseData = courseData;
     ensureCourseColorsAssigned(courseData);
     updateSettingsCourseList(courseData);
 
@@ -713,11 +715,17 @@ function buildSettingsPanel() {
 
     panel.appendChild(body);
 
+    // Populate course list with whatever data was last received.
+    // Pass coursesList directly since the panel isn't in the DOM yet.
+    if (Object.keys(_lastCourseData).length > 0) {
+        updateSettingsCourseList(_lastCourseData, coursesList);
+    }
+
     return panel;
 }
 
-function updateSettingsCourseList(courseData) {
-    const list = document.getElementById("spark-settings-courses-list");
+function updateSettingsCourseList(courseData, listEl = null) {
+    const list = listEl || document.getElementById("spark-settings-courses-list");
     if (!list) return;
 
     list.innerHTML = "";
