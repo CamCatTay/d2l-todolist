@@ -1,4 +1,4 @@
-import { getCourseContent } from "/scripts/brightspace.js";
+import { getCourseContent } from "/src/api/brightspace.js";
 
 const SCROLL_POS_KEY = "spark-scroll-pos";
 const ACTIVE_TAB_KEY = "spark-active-panel-tab";

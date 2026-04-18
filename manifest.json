@@ -4,12 +4,12 @@
   "version": "1.0.0",
   "description": "A productivity extension for Brightspace.",
   "icons": {
-    "16": "/images/spark_logo.png",
-    "48": "/images/spark_logo.png",
-    "128": "/images/spark_logo.png"
+    "16": "/icons/spark_logo.png",
+    "48": "/icons/spark_logo.png",
+    "128": "/icons/spark_logo.png"
   },
   "background": {
-    "service_worker": "/scripts/background.js",
+    "service_worker": "/src/background.js",
     "type": "module"
   },
   "permissions": [
@@ -21,22 +21,22 @@
       "matches": ["https://*/d2l/*"],
       "all_frames": false,
       "js": [
-        "/scripts/date-utils.js",
-        "/scripts/color-utils.js",
-        "/scripts/panel.js",
-        "/scripts/ui-components.js",
-        "/scripts/content.js"
+        "/src/utils/date-utils.js",
+        "/src/utils/color-utils.js",
+        "/src/ui/panel.js",
+        "/src/ui/components.js",
+        "/src/content.js"
       ],
       "css": ["/styles/sidepanel.css"]
     }
   ],
   "action": {
-    "default_icon": "/images/spark_logo.png",
+    "default_icon": "/icons/spark_logo.png",
     "default_title": "Spark - for Brightspace"
   },
   "web_accessible_resources": [
     {
-      "resources": ["images/*"],
+      "resources": ["icons/*"],
       "matches": ["<all_urls>"]
     }
   ]
