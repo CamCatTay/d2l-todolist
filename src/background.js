@@ -2,7 +2,7 @@
 // Handles the background service worker: fetches course data, manages caching,
 // and responds to messages from the content script.
 
-import { getCourseContent } from "/src/api/brightspace.js";
+import { get_course_content } from "/src/api/brightspace.js";
 
 const SCROLL_POS_KEY = "spark-scroll-pos";
 const ACTIVE_TAB_KEY = "spark-active-panel-tab";
@@ -11,7 +11,7 @@ const SETTINGS_VALUE_KEY = "spark-user-settings";
 
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     if (request.action === "fetchCourses") {
-        getCourseContent(sender.tab.url).then(function(data) {
+        get_course_content(sender.tab.url).then(function(data) {
             sendResponse(data); // data is already in object form
         });
         return true;
