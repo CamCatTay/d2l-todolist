@@ -1,16 +1,20 @@
 {
   "name": "spark-for-brightspace",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A productivity extension for Brightspace.",
   "scripts": {
     "test": "jest",
-    "package": "powershell -ExecutionPolicy Bypass -File ./scripts/package-extension.ps1"
+    "package": "node ./scripts/package-extension.js",
+    "version": "node ./scripts/sync-version.js && git add manifest.json"
   },
   "devDependencies": {
+    "adm-zip": "^0.5.17",
     "jest": "^29.7.0"
   },
   "jest": {
     "testEnvironment": "node",
-    "testMatch": ["**/tests/**/*.test.js"]
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
   }
 }
