@@ -65,3 +65,8 @@ function getWeekStart(date) {
 function getDateKey(date) {
     return date.toISOString().split('T')[0];
 }
+
+// Allow importing in Node.js / Jest without breaking browser content script loading
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { formatTimeFromDate, formatFullDatetime, getDateOnly, formatDateHeader, getWeekStart, getDateKey };
+}

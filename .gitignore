@@ -1,1 +1,7 @@
 .vscode/
+
+# Jest dependencies
+node_modules/
+
+# Release packages produced by scripts/package-extension.ps1
+*.zip

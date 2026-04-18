@@ -33,3 +33,8 @@ function ensureCourseColorsAssigned(courseData) {
 function getCourseColor(courseName) {
     return courseColorMap[courseName] || "#808080";
 }
+
+// Allow importing in Node.js / Jest without breaking browser content script loading
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { COLOR_POOL, getColorFromPool, ensureCourseColorsAssigned, getCourseColor, _resetColorMap: () => { courseColorMap = {}; } };
+}
