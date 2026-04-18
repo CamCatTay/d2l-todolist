@@ -17,7 +17,6 @@
 
 /**
  * @typedef {Object} BrightspaceItem
- * @property {string} UserId
  * @property {string} OrgUnitId
  * @property {number} ItemId
  * @property {string} ItemName
@@ -335,7 +334,6 @@ export async function get_course_content(tabUrl) {
         const quiz_items = course_quizzes.map(function(quiz, index) {
             const attempt_count = attempt_counts[index];
             return {
-                UserId: course.UserId,
                 OrgUnitId: course.OrgUnit.Id,
                 ItemId: quiz.QuizId,
                 ItemName: quiz.Name,
@@ -360,7 +358,6 @@ export async function get_course_content(tabUrl) {
             const submissions = assignment_submissions[index];
             const has_submission = submissions.some(s => s.Submissions && s.Submissions.length > 0);
             const item = {
-                UserId: course.UserId,
                 OrgUnitId: course.OrgUnit.Id,
                 ItemId: assignment.Id,
                 ItemName: assignment.Name,
@@ -389,7 +386,6 @@ export async function get_course_content(tabUrl) {
                 const posts = topic_posts[index];
                 const has_posted = current_user_id !== null && posts.some(p => p.PostingUserId === current_user_id);
                 const item = {
-                    UserId: course.UserId,
                     OrgUnitId: course.OrgUnit.Id,
                     ItemId: topic.TopicId,
                     ItemName: topic.Name,
