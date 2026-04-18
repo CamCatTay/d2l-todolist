@@ -2,6 +2,19 @@
 // Fetches and transforms course data from the Brightspace REST API into
 // structured Course and Item objects consumed by the UI.
 
+// ============================================================
+// Imports
+// ============================================================
+
+// import { getTestCourseContent } from './test-data.js';
+
+// TEST MODE: Set to true to use fake course data for testing
+// const TEST_MODE = false;
+
+// ============================================================
+// Type Definitions
+// ============================================================
+
 /**
  * @typedef {Object} BrightspaceItem
  * @property {string} UserId
@@ -19,11 +32,9 @@
  * @property {boolean} IsExempt
  */
 
-// import { getTestCourseContent } from './test-data.js';
-
-// TEST MODE: Set to true to use fake course data for testing
-// const TEST_MODE = false;
-
+// ============================================================
+// Classes
+// ============================================================
 class Course {
     constructor(id, name, url) {
         this.id = id;
@@ -59,61 +70,9 @@ class Item {
     }
 }
 
-// Fetches the base URL (protocol + host) from a full URL string (e.g. "https://example.com" )
-export async function getBaseURL(tabUrl) {
-    const url = new URL(tabUrl);
-    return url.protocol + "//" + url.host;
-}
-
-// Fetches all pages of a paginated Brightspace API endpoint and returns the combined results.
-export async function getBrightspaceData(url) {
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if ("Next" in data) { // check if there is next page for course data
-        if (!data.Next) {
-            return data.Objects;
-        } else {
-            return data.Objects.concat(await getBrightspaceData(data.Next));
-        }
-    }
-    else if ("PagingInfo" in data && data.PagingInfo && data.PagingInfo.HasMoreItems) { // check if there is next page for enrollment data
-        const currentPage = new URL(url);
-        currentPage.searchParams.set("bookmark", data.PagingInfo.Bookmark); //append ?bookmark=... for next page
-
-        const nextPageItems = await getBrightspaceData(currentPage.toString());
-        return data.Items.concat(nextPageItems);
-    }
-    if (Array.isArray(data)) {
-        return data;
-    }
-    return data.Items || data.Object || data.Objects || [];
-}
-
-/**
- * Clears a start date if it's already in the past (item is already available).
- * @param {string|null} startDate - ISO date string or null
- * @returns {string|null} The original date if in the future, null if past or null
- */
-function clearPastStartDate(startDate) {
-    if (!startDate) return null;
-    const startDateObj = new Date(startDate);
-    const now = new Date();
-    const startDateOnly = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate());
-    const nowOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    return startDateOnly <= nowOnly ? null : startDate;
-}
-
-// Fetch active courses
-export async function getBrightspaceCourses(baseURL) {
-    const coursesURL = baseURL + "/d2l/api/lp/1.43/enrollments/myenrollments/";
-    const allCourses = await getBrightspaceData(coursesURL);
-    return allCourses.filter(function(course) {
-        return course.Access.CanAccess && course.Access.IsActive && course.OrgUnit.Type.Id === 3;
-    });
-}
-
-// --- Course Item Fetching Logic ---
+// ============================================================
+// Course Item Fetching
+// ============================================================
 
 // Fetch items from a Brightspace API endpoint for a specific course
 async function fetchCourseData(baseURL, endpoint) {
@@ -126,10 +85,52 @@ async function fetchCourseData(baseURL, endpoint) {
     }
 }
 
+// ============================================================
+// Quiz Fetching
+// ============================================================
+
 // Fetch quizzes and tests for a specific course
 async function getBrightspaceQuizzes(baseURL, courseId) {
     return fetchCourseData(baseURL, `/d2l/api/le/1.67/${courseId}/quizzes/`);
 }
+
+/**
+ * Fetches the number of completed attempts for a quiz from the quiz summary page.
+ * Reads the server-rendered HTML and extracts the count from the element with id="z_l".
+ * Falls back to regex matching anywhere in the page body.
+ * @param {string} baseURL - The base URL of the Brightspace instance
+ * @param {number|string} quizId - The quiz ID (qi parameter)
+ * @param {number|string} orgId - The org unit ID (ou parameter)
+ * @returns {Promise<number>} The number of completed attempts, or 0 if not found
+ */
+async function getQuizAttemptCount(baseURL, quizId, orgId) {
+    try {
+        const url = `${baseURL}/d2l/lms/quizzing/user/quiz_summary.d2l?qi=${quizId}&ou=${orgId}`;
+        const response = await fetch(url, { credentials: 'include' });
+        if (!response.ok) return 0;
+        const html = await response.text();
+
+        // Primary: extract inline text content of the element with id="z_l"
+        const zlElementMatch = html.match(/id=["']z_l["'][^>]*>([^<]*)/);
+        if (zlElementMatch) {
+            const completedMatch = zlElementMatch[1].match(/Completed\s*-\s*(\d+)/);
+            if (completedMatch) return parseInt(completedMatch[1], 10);
+        }
+
+        // Fallback: match "Completed - <N>" anywhere in the page body
+        const fallbackMatch = html.match(/Completed\s*-\s*(\d+)/);
+        if (fallbackMatch) return parseInt(fallbackMatch[1], 10);
+
+        return 0;
+    } catch (error) {
+        console.warn(`Failed to fetch quiz attempt count for quiz ${quizId}:`, error);
+        return 0;
+    }
+}
+
+// ============================================================
+// Assignment Fetching
+// ============================================================
 
 // Fetch assignments (contain dropbox folders) for a specific course
 async function getBrightspaceAssignments(baseURL, courseId) {
@@ -174,21 +175,12 @@ async function getAssignmentSubmissionsFromHistory(baseURL, courseId, assignment
     }
 }
 
-// Get the current user's numeric ID
-export async function getCurrentUserId(baseURL) {
-    try {
-        const response = await fetch(baseURL + '/d2l/api/lp/1.49/users/whoami');
-        if (!response.ok) return null;
-        const data = await response.json();
-        return parseInt(data.Identifier, 10);
-    } catch (error) {
-        console.warn('Failed to fetch current user ID:', error);
-        return null;
-    }
-}
+// ============================================================
+// Discussion Post Fetching
+// ============================================================
 
 // Fetch posts for a specific discussion topic
-export async function getDiscussionTopicPosts(baseURL, courseId, forumId, topicId) {
+async function getDiscussionTopicPosts(baseURL, courseId, forumId, topicId) {
     try {
         const postsURL = baseURL + `/d2l/api/le/1.82/${courseId}/discussions/forums/${forumId}/topics/${topicId}/posts/`;
         const posts = await getBrightspaceData(postsURL);
@@ -200,7 +192,7 @@ export async function getDiscussionTopicPosts(baseURL, courseId, forumId, topicI
 }
 
 // Fetch discussion forums for a specific course
-export async function getBrightspaceDiscussionForums(baseURL, courseId) {
+async function getBrightspaceDiscussionForums(baseURL, courseId) {
     const forumsURL = baseURL + `/d2l/api/le/1.82/${courseId}/discussions/forums/`;
     try {
         const forums = await getBrightspaceData(forumsURL);
@@ -212,7 +204,7 @@ export async function getBrightspaceDiscussionForums(baseURL, courseId) {
 }
 
 // Fetch discussion topics for a specific forum
-export async function getBrightspaceDiscussionTopics(baseURL, courseId, forumId) {
+async function getBrightspaceDiscussionTopics(baseURL, courseId, forumId) {
     const topicsURL = baseURL + `/d2l/api/le/1.82/${courseId}/discussions/forums/${forumId}/topics/`;
     try {
         const topics = await getBrightspaceData(topicsURL);
@@ -223,40 +215,88 @@ export async function getBrightspaceDiscussionTopics(baseURL, courseId, forumId)
     }
 }
 
-/**
- * Fetches the number of completed attempts for a quiz from the quiz summary page.
- * Reads the server-rendered HTML and extracts the count from the element with id="z_l".
- * Falls back to regex matching anywhere in the page body.
- * @param {string} baseURL - The base URL of the Brightspace instance
- * @param {number|string} quizId - The quiz ID (qi parameter)
- * @param {number|string} orgId - The org unit ID (ou parameter)
- * @returns {Promise<number>} The number of completed attempts, or 0 if not found
- */
-export async function getQuizAttemptCount(baseURL, quizId, orgId) {
+// ============================================================
+// UserID Fetching
+// ============================================================
+
+// Get the current user's numeric ID
+async function getCurrentUserId(baseURL) {
     try {
-        const url = `${baseURL}/d2l/lms/quizzing/user/quiz_summary.d2l?qi=${quizId}&ou=${orgId}`;
-        const response = await fetch(url, { credentials: 'include' });
-        if (!response.ok) return 0;
-        const html = await response.text();
-
-        // Primary: extract inline text content of the element with id="z_l"
-        const zlElementMatch = html.match(/id=["']z_l["'][^>]*>([^<]*)/);
-        if (zlElementMatch) {
-            const completedMatch = zlElementMatch[1].match(/Completed\s*-\s*(\d+)/);
-            if (completedMatch) return parseInt(completedMatch[1], 10);
-        }
-
-        // Fallback: match "Completed - <N>" anywhere in the page body
-        const fallbackMatch = html.match(/Completed\s*-\s*(\d+)/);
-        if (fallbackMatch) return parseInt(fallbackMatch[1], 10);
-
-        return 0;
+        const response = await fetch(baseURL + '/d2l/api/lp/1.49/users/whoami');
+        if (!response.ok) return null;
+        const data = await response.json();
+        return parseInt(data.Identifier, 10);
     } catch (error) {
-        console.warn(`Failed to fetch quiz attempt count for quiz ${quizId}:`, error);
-        return 0;
+        console.warn('Failed to fetch current user ID:', error);
+        return null;
     }
 }
 
+// ============================================================
+// Core Data Fetching
+// ============================================================
+
+// Fetches the base URL (protocol + host) from a full URL string (e.g. "https://example.com" )
+async function getBaseURL(tabUrl) {
+    const url = new URL(tabUrl);
+    return url.protocol + "//" + url.host;
+}
+
+// Fetches all pages of a paginated Brightspace API endpoint and returns the combined results.
+async function getBrightspaceData(url) {
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if ("Next" in data) { // check if there is next page for course data
+        if (!data.Next) {
+            return data.Objects;
+        } else {
+            return data.Objects.concat(await getBrightspaceData(data.Next));
+        }
+    }
+    else if ("PagingInfo" in data && data.PagingInfo && data.PagingInfo.HasMoreItems) { // check if there is next page for enrollment data
+        const currentPage = new URL(url);
+        currentPage.searchParams.set("bookmark", data.PagingInfo.Bookmark); //append ?bookmark=... for next page
+
+        const nextPageItems = await getBrightspaceData(currentPage.toString());
+        return data.Items.concat(nextPageItems);
+    }
+    if (Array.isArray(data)) {
+        return data;
+    }
+    return data.Items || data.Object || data.Objects || [];
+}
+
+// ============================================================
+// Course Filtering & Helpers
+// ============================================================
+
+/**
+ * Clears a start date if it's already in the past (item is already available).
+ * @param {string|null} startDate - ISO date string or null
+ * @returns {string|null} The original date if in the future, null if past or null
+ */
+function clearPastStartDate(startDate) {
+    if (!startDate) return null;
+    const startDateObj = new Date(startDate);
+    const now = new Date();
+    const startDateOnly = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate());
+    const nowOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return startDateOnly <= nowOnly ? null : startDate;
+}
+
+// Fetch active courses
+async function getBrightspaceCourses(baseURL) {
+    const coursesURL = baseURL + "/d2l/api/lp/1.43/enrollments/myenrollments/";
+    const allCourses = await getBrightspaceData(coursesURL);
+    return allCourses.filter(function(course) {
+        return course.Access.CanAccess && course.Access.IsActive && course.OrgUnit.Type.Id === 3;
+    });
+}
+
+// ============================================================
+// Main Entry Point
+// ============================================================
 
 export async function getCourseContent(tabUrl) {
     // Return fake data if in test mode
@@ -402,7 +442,7 @@ export async function getCourseContent(tabUrl) {
     return courseMap;
 }
 
-export async function mapData(courses, items) {
+async function mapData(courses, items) {
     const courseMap = {};
 
     // Iterate through courses and convert them into Course objects
