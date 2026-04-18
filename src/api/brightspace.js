@@ -65,6 +65,7 @@ export async function getBaseURL(tabUrl) {
     return url.protocol + "//" + url.host;
 }
 
+// Fetches all pages of a paginated Brightspace API endpoint and returns the combined results.
 export async function getBrightspaceData(url) {
     const response = await fetch(url);
     const data = await response.json();
