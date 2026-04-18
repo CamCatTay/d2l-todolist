@@ -1,0 +1,17 @@
+// Suppresses grammar warnings for these words
+{
+  "version": "0.2",
+  "words": [
+    "Brightspace",
+    "brightspace",
+    "myenrollments",
+    "orgunit",
+    "orgunitid",
+    "quizzing",
+    "dropbox",
+    "adm",
+    "grpid",
+    "isprv",
+    "cfql"
+  ]
+}
