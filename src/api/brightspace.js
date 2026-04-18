@@ -33,7 +33,6 @@
 // ============================================================
 
 const ActivityType = Object.freeze({
-    FILE: 1,
     DROPBOX: 3,
     QUIZ: 4,
     DISCUSSION: 5
@@ -47,13 +46,9 @@ class Course {
         this.id = id;
         this.name = name;
         this.url = url;
-        this.files = {};
         this.quizzes = {};
         this.assignments = {};
         this.discussions = {};
-    }
-    addFile(item) {
-        this.files[item.id] = item;
     }
     addQuiz(item) {
         this.quizzes[item.id] = item;
@@ -305,6 +300,57 @@ async function get_brightspace_courses(base_url) {
 // Main Entry Point
 // ============================================================
 
+// Takes in processed course and item data, constructs Course objects with their associated items,
+// and returns them as a structured collection of course data for easy querying
+async function build_course_data(all_courses, all_items) {
+    const course_data = {};
+
+    // Iterate through courses and convert them into Course objects
+    all_courses.forEach(courseData => {
+        const course = new Course(
+            courseData.OrgUnit.Id,
+            courseData.OrgUnit.Name,
+            courseData.HomeUrl
+        );
+        course_data[course.id] = course;
+
+    });
+
+    // Iterate through items and convert them into Item objects
+    all_items.forEach(itemData => {
+        const item = new Item(
+            itemData.ItemId,
+            itemData.ItemName,
+            itemData.ItemUrl,
+            itemData.DueDate || itemData.EndDate, // Use EndDate if DueDate is null
+            !!itemData.DateCompleted, // Item is completed if DateCompleted exists
+            itemData.StartDate || null // Start date when item becomes available
+        );
+
+        const course = course_data[itemData.OrgUnitId];
+
+        // Add the item to the appropriate course map
+        if (course) {
+            switch (itemData.ActivityType) {
+                case 3: // Assignment
+                    course.addAssignment(item);
+                    break;
+                case 4: // Quiz
+                    course.addQuiz(item);
+                    break;
+                case 5: // DiscussionForum
+                    course.addDiscussion(item);
+                    break;
+                default:
+                    console.warn(`Unused ActivityType: ${itemData.ActivityType}`);
+            }
+        }
+    });
+
+    // Return the processed data
+    return course_data;
+}
+
 export async function get_course_content(tabUrl) {
     // Return fake data if in test mode
     /*
@@ -322,6 +368,9 @@ export async function get_course_content(tabUrl) {
 
     // Fetch quizzes and assignments for each course and add them to course_items
     for (const course of all_courses) {
+
+        // -- Quizzes --
+
         const course_quizzes = await get_brightspace_quizzes(base_url, course.OrgUnit.Id);
 
         // Fetch attempt counts for all quizzes in this course in parallel
@@ -347,6 +396,8 @@ export async function get_course_content(tabUrl) {
         });
         course_items = course_items.concat(quiz_items);
 
+        // -- Assignments --
+
         const course_assignments = await get_brightspace_assignments(base_url, course.OrgUnit.Id);
 
         // Fetch submissions for all assignments in this course in parallel
@@ -371,6 +422,8 @@ export async function get_course_content(tabUrl) {
             return item;
         });
         course_items = course_items.concat(assignment_items);
+
+        // -- Discussions --
 
         const discussion_forums = await get_brightspace_discussion_forums(base_url, course.OrgUnit.Id);
 
@@ -402,59 +455,7 @@ export async function get_course_content(tabUrl) {
         }
     }
 
-    const course_data = await buildCourseData(all_courses, course_items);
+    const course_data = await build_course_data(all_courses, course_items);
 
-    return course_data;
-}
-
-async function buildCourseData(courses, items) {
-    const course_data = {};
-
-    // Iterate through courses and convert them into Course objects
-    courses.forEach(courseData => {
-        const course = new Course(
-            courseData.OrgUnit.Id,
-            courseData.OrgUnit.Name,
-            courseData.HomeUrl
-        );
-        course_data[course.id] = course;
-
-    });
-
-    // Iterate through items and convert them into Item objects
-    items.forEach(itemData => {
-        const item = new Item(
-            itemData.ItemId,
-            itemData.ItemName,
-            itemData.ItemUrl,
-            itemData.DueDate || itemData.EndDate, // Use EndDate if DueDate is null
-            !!itemData.DateCompleted, // Item is completed if DateCompleted exists
-            itemData.StartDate || null // Start date when item becomes available
-        );
-
-        const course = course_data[itemData.OrgUnitId];
-
-        // Add the item to the appropriate course map
-        if (course) {
-            switch (itemData.ActivityType) {
-                case 1: // File
-                    course.addFile(item);
-                    break;
-                case 3: // Assignment
-                    course.addAssignment(item);
-                    break;
-                case 4: // Quiz
-                    course.addQuiz(item);
-                    break;
-                case 5: // DiscussionForum
-                    course.addDiscussion(item);
-                    break;
-                default:
-                    console.warn(`Unused ActivityType: ${itemData.ActivityType}`);
-            }
-        }
-    });
-
-    // Return the processed data
     return course_data;
 }
