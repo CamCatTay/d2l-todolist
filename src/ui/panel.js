@@ -3,12 +3,12 @@
 // scroll persistence, and rendering course content into the panel.
 
 import { Action } from "../shared/actions.js";
-import { buildSettingsPanel } from "./components.js";
+import { build_settings_panel } from "./components.js";
 
 const EXPANSION_STATE_KEY = "d2l-todolist-expanded";
 const PANEL_WIDTH_KEY = "d2l-todolist-width";
 
-export function safeSendMessage(message, callback) {
+export function safe_send_message(message, callback) {
     try {
         if (callback) {
             chrome.runtime.sendMessage(message, callback);
@@ -22,7 +22,7 @@ export function safeSendMessage(message, callback) {
     }
 }
 
-export let panelWidth = 350;
+export let panel_width = 350;
 let container;
 let isAnimating = false;
 let settingsWasOpen = false;
@@ -31,15 +31,15 @@ let wasClosedSilently = false;
 // Callback invoked when the panel is restored after a silent close.
 let _onPanelRestore = null;
 
-export function registerPanelRestoreCallback(fn) {
+export function register_panel_restore_callback(fn) {
     _onPanelRestore = fn;
 }
 
 function updateBodyMargin() {
-    document.body.style.marginRight = panelWidth + "px";
+    document.body.style.marginRight = panel_width + "px";
 }
 
-export function togglePanel() {
+export function toggle_panel() {
     if (!container || isAnimating) return;
     isAnimating = true;
 
@@ -54,7 +54,7 @@ export function togglePanel() {
             container.classList.add("hidden");
             localStorage.setItem(EXPANSION_STATE_KEY, "false");
             wasClosedSilently = false;
-            safeSendMessage({ action: Action.PANEL_CLOSED });
+            safe_send_message({ action: Action.PANEL_CLOSED });
             document.body.style.marginRight = "0";
             const animationHandler = () => {
                 container.style.display = "none";
@@ -76,7 +76,7 @@ export function togglePanel() {
         container.classList.remove("hidden");
         localStorage.setItem(EXPANSION_STATE_KEY, "true");
         wasClosedSilently = false;
-        safeSendMessage({ action: Action.PANEL_OPENED });
+        safe_send_message({ action: Action.PANEL_OPENED });
         container.style.display = "flex";
         updateBodyMargin();
 
@@ -86,10 +86,10 @@ export function togglePanel() {
             setTimeout(() => {
                 let sp = document.getElementById("spark-settings-panel");
                 if (!sp) {
-                    sp = buildSettingsPanel();
+                    sp = build_settings_panel();
                     document.body.appendChild(sp);
                 }
-                sp.style.right = (typeof panelWidth !== "undefined" ? panelWidth : 350) + "px";
+                sp.style.right = (typeof panel_width !== "undefined" ? panel_width : 350) + "px";
                 sp.classList.add("open");
                 // Settings transition completes after another 250ms
                 setTimeout(() => { isAnimating = false; }, 250);
@@ -101,10 +101,10 @@ export function togglePanel() {
                     if (result["spark-settings-open"]) {
                         let sp = document.getElementById("spark-settings-panel");
                         if (!sp) {
-                            sp = buildSettingsPanel();
+                            sp = build_settings_panel();
                             document.body.appendChild(sp);
                         }
-                        sp.style.right = panelWidth + "px";
+                        sp.style.right = panel_width + "px";
                         sp.classList.add("open");
                         setTimeout(() => { isAnimating = false; }, 250);
                     } else {
@@ -119,7 +119,7 @@ export function togglePanel() {
 // Close the panel without changing the user's saved preference.
 // Used when another tab takes over as the active panel.
 // Deliberately skips animation — the user is not watching this tab.
-export function closePanelSilently() {
+export function close_panel_silently() {
     if (!container || container.classList.contains("hidden")) return;
     wasClosedSilently = true;
     container.classList.add("hidden");
@@ -136,11 +136,11 @@ export function closePanelSilently() {
 function createEmbeddedCalendarUI() {
     const newContainer = document.createElement("div");
     newContainer.id = "d2l-todolist-widget";
-    newContainer.style.width = panelWidth + "px";
+    newContainer.style.width = panel_width + "px";
 
     const panel = document.createElement("div");
     panel.id = "d2l-todolist-panel";
-    panel.style.width = panelWidth + "px";
+    panel.style.width = panel_width + "px";
 
     const resizeHandle = document.createElement("div");
     resizeHandle.className = "d2l-todolist-resize-handle";
@@ -155,12 +155,12 @@ function createEmbeddedCalendarUI() {
     // Resize functionality
     let isResizing = false;
     let startX = 0;
-    let startWidth = panelWidth;
+    let startWidth = panel_width;
 
     resizeHandle.addEventListener("mousedown", function(e) {
         isResizing = true;
         startX = e.clientX;
-        startWidth = panelWidth;
+        startWidth = panel_width;
         document.body.style.userSelect = "none";
         document.body.style.cursor = "col-resize";
     });
@@ -171,7 +171,7 @@ function createEmbeddedCalendarUI() {
         const deltaX = e.clientX - startX;
         const newWidth = Math.max(250, startWidth - deltaX);
 
-        panelWidth = newWidth;
+        panel_width = newWidth;
         newContainer.style.width = newWidth + "px";
         panel.style.width = newWidth + "px";
         updateBodyMargin();
@@ -193,13 +193,13 @@ function createEmbeddedCalendarUI() {
     return { container: newContainer, calendarContainer, panel };
 }
 
-export function injectEmbeddedUI() {
+export function inject_embedded_ui() {
     const existing = document.getElementById("d2l-todolist-widget");
     if (existing) existing.remove();
 
     const savedWidth = localStorage.getItem(PANEL_WIDTH_KEY);
     if (savedWidth) {
-        panelWidth = parseInt(savedWidth, 10);
+        panel_width = parseInt(savedWidth, 10);
     }
 
     const { container: newContainer, calendarContainer } = createEmbeddedCalendarUI();
@@ -223,7 +223,7 @@ export function injectEmbeddedUI() {
 
     // Claim the active panel slot if starting visible.
     if (shouldShowPanel) {
-        safeSendMessage({ action: Action.PANEL_OPENED });
+        safe_send_message({ action: Action.PANEL_OPENED });
     }
 
     // Handle tab visibility changes.
@@ -240,14 +240,14 @@ export function injectEmbeddedUI() {
                 container.style.display = "flex";
                 container.classList.remove("hidden");
                 updateBodyMargin();
-                safeSendMessage({ action: Action.PANEL_OPENED });
+                safe_send_message({ action: Action.PANEL_OPENED });
                 if (_onPanelRestore) _onPanelRestore();
             }
         } else if (container && !container.classList.contains("hidden")) {
             // Panel was open when the user switched away — it was never closed.
             // Reclaim the active slot (closes any other tab's panel if visible)
             // and refresh data without any animation.
-            safeSendMessage({ action: Action.PANEL_OPENED });
+            safe_send_message({ action: Action.PANEL_OPENED });
             if (_onPanelRestore) _onPanelRestore();
         }
     });

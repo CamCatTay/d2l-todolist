@@ -5,7 +5,7 @@
 import { Action } from "../shared/actions.js";
 import { formatTimeFromDate, formatFullDatetime, getDateOnly, formatDateHeader, getWeekStart, getDateKey } from "../utils/date-utils.js";
 import { getCourseColor, ensureCourseColorsAssigned } from "../utils/color-utils.js";
-import { safeSendMessage, panelWidth } from "./panel.js";
+import { safe_send_message, panel_width } from "./panel.js";
 
 // Callbacks registered by content.js so settings UI can trigger refresh/re-render
 let _on_refresh = null;
@@ -221,11 +221,11 @@ function createAssignmentElement(assignment, course) {
     return assignmentContainer;
 }
 
-export function initializeGUI() {
-    updateGUI({}, true);
+export function initialize_gui() {
+    update_gui({}, true);
 }
 
-export function addDataStatusIndicator(isStale) {
+export function add_data_status_indicator(isStale) {
     const chartContainer = document.getElementById("frequency-chart");
     const calendarContainer = document.getElementById("calendar-container");
     const targetContainer = chartContainer || calendarContainer;
@@ -242,7 +242,7 @@ export function addDataStatusIndicator(isStale) {
     }
 }
 
-export function updateGUI(courseData, isFromCache = false) {
+export function update_gui(courseData, isFromCache = false) {
     const calendarContainer = document.getElementById("calendar-container");
     if (!calendarContainer) return;
 
@@ -304,7 +304,7 @@ export function updateGUI(courseData, isFromCache = false) {
     }
 
     if (isFromCache) {
-        addDataStatusIndicator(true);
+        add_data_status_indicator(true);
     }
 
     // Empty state — chart is already rendered above for the buttons and loading indicator
@@ -406,13 +406,13 @@ function createFrequencyChart(calendarContainer, itemsByDate, initialWeekOffset 
         e.stopPropagation();
         let settingsPanel = document.getElementById("spark-settings-panel");
         if (!settingsPanel) {
-            settingsPanel = buildSettingsPanel();
+            settingsPanel = build_settings_panel();
             document.body.appendChild(settingsPanel);
         }
         settingsPanel.classList.toggle("open");
-        settingsPanel.style.right = panelWidth + "px";
+        settingsPanel.style.right = panel_width + "px";
         const isOpen = settingsPanel.classList.contains("open");
-        safeSendMessage({ action: isOpen ? Action.BROADCAST_SETTINGS_OPENED : Action.BROADCAST_SETTINGS_CLOSED });
+        safe_send_message({ action: isOpen ? Action.BROADCAST_SETTINGS_OPENED : Action.BROADCAST_SETTINGS_CLOSED });
     });
     weekLabelRow.appendChild(settingsBtn);
 
@@ -441,7 +441,7 @@ function createFrequencyChart(calendarContainer, itemsByDate, initialWeekOffset 
     faqBtn.textContent = "?";
     faqBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        safeSendMessage({ action: Action.OPEN_FAQ });
+        safe_send_message({ action: Action.OPEN_FAQ });
     });
     weekLabelRow.appendChild(faqBtn);
 
@@ -681,7 +681,7 @@ function getAllSettings() {
 
 // Applies a settings object (from chrome.storage or a broadcast message) to
 // in-memory state, localStorage, and any currently-open settings panel UI.
-export function applySettings({ daysBack, hiddenCourses, hiddenTypesArr }) {
+export function apply_settings({ daysBack, hiddenCourses, hiddenTypesArr }) {
     CALENDAR_START_DAYS_BACK = daysBack;
     hiddenCourseIds = new Set(hiddenCourses);
     hiddenTypes = new Set(hiddenTypesArr);
@@ -703,7 +703,7 @@ export function applySettings({ daysBack, hiddenCourses, hiddenTypesArr }) {
     updateSettingsCourseList(_lastCourseData);
 }
 
-export function buildSettingsPanel() {
+export function build_settings_panel() {
     const panel = document.createElement("div");
     panel.id = "spark-settings-panel";
 
@@ -747,7 +747,7 @@ export function buildSettingsPanel() {
         input.value = val.toString();
         CALENDAR_START_DAYS_BACK = val;
         localStorage.setItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY, val.toString());
-        safeSendMessage({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: getAllSettings() });
+        safe_send_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: getAllSettings() });
         if (_on_rerender) _on_rerender();
     });
 
@@ -787,7 +787,7 @@ export function buildSettingsPanel() {
                 hiddenTypes.add(key);
             }
             localStorage.setItem(HIDDEN_TYPES_KEY, JSON.stringify([...hiddenTypes]));
-            safeSendMessage({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: getAllSettings() });
+            safe_send_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: getAllSettings() });
             if (_on_rerender) _on_rerender();
         });
 
@@ -864,7 +864,7 @@ function updateSettingsCourseList(courseData, listEl = null) {
                 hiddenCourseIds.add(courseId);
             }
             localStorage.setItem(HIDDEN_COURSES_KEY, JSON.stringify([...hiddenCourseIds]));
-            safeSendMessage({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: getAllSettings() });
+            safe_send_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: getAllSettings() });
             if (_on_rerender) _on_rerender();
         });
 

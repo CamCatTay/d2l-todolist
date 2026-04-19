@@ -333,14 +333,14 @@ describe(Action.BROADCAST_SETTINGS_CLOSED, () => {
 // ============================================================
 
 describe('chrome.action.onClicked', () => {
-    test('sends togglePanel when the clicked tab is a D2L tab', () => {
+    test('sends toggle_panel when the clicked tab is a D2L tab', () => {
         const tab = make_d2l_tab(3);
         on_action_clicked(tab);
 
         expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(3, { action: Action.TOGGLE_PANEL });
     });
 
-    test('does not send togglePanel when the clicked tab is not a D2L tab', () => {
+    test('does not send toggle_panel when the clicked tab is not a D2L tab', () => {
         const tab = make_other_tab(3);
         on_action_clicked(tab);
 
