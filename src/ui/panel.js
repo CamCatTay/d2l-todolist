@@ -133,7 +133,6 @@ export function register_panel_restore_callback(fn) {
  * Toggles the panel open or closed, handling settings panel state and animations.
  */
 export function toggle_panel() {
-    console.log("toggling side panel");
     if (!container || is_animating) return;
     is_animating = true;
 
@@ -222,26 +221,20 @@ export function inject_embedded_ui() {
     const { container: new_container, calendar_container } = create_embedded_calendar_ui();
     container = new_container;
 
-    const saved_state = sessionStorage.getItem(EXPANSION_STATE_KEY);
-    const should_show_panel = saved_state === null || saved_state === "true";
+    const should_show_panel = sessionStorage.getItem(EXPANSION_STATE_KEY);
 
-    if (!should_show_panel) {
-        container.style.display = "none";
-        container.classList.add("hidden");
-    }
+    console.log("Should show panel?: ", should_show_panel);
 
     if (should_show_panel) {
+        console.log("Showing!");
         update_body_margin();
     } else {
+        console.log("Hiding!");
+        container.style.display = "none";
+        container.classList.add("hidden");
         document.body.style.marginRight = "0";
     }
 
-    /*
-    // Panel starts hidden on new tabs
-    container.style.display = "none";
-    container.classList.add("hidden");
-    document.body.style.marginRight = "0";
-    */
     document.body.appendChild(container);
 
     // Handle tab visibility changes.
