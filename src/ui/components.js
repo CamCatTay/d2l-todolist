@@ -708,6 +708,13 @@ function update_frequency_nav_buttons(chart_container) {
 
 // ============================================================
 // Settings
+
+// Scrolls the calendar to today's date. Used on first panel open when no scroll
+// position has been saved yet for this session.
+export function scroll_to_today() {
+    const cal = document.getElementById("calendar-container");
+    if (cal) scroll_to_date(cal, new Date());
+}
 // ============================================================
 
 // Registers the refresh and re-render callbacks provided by content.js

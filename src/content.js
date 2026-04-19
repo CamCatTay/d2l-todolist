@@ -18,6 +18,7 @@ import {
     apply_settings,
     set_last_fetched_time,
     register_ui_callbacks,
+    scroll_to_today,
 } from "./ui/components.js";
 
 // ============================================================
@@ -71,12 +72,15 @@ window.addEventListener("load", () => {
     });
 
     // Returns nothing. Reads the stored scroll position and applies it to the calendar container.
+    // Falls back to scrolling to today's date on first open when no position has been saved.
     function restore_scroll_position() {
         const saved = parseInt(sessionStorage.getItem(SCROLL_POS_SESSION_KEY) || "0", 10);
         if (saved > 0) {
             requestAnimationFrame(() => {
                 calendar_container.scrollTop = saved;
             });
+        } else {
+            scroll_to_today();
         }
     }
 
