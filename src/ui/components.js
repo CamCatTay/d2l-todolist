@@ -90,7 +90,7 @@ function truncate_course_name(name) {
 // Settings
 // ============================================================
 
-let _lastCourseData = {};
+let _last_course_data = {};
 let last_fetched_time = null;
 let hidden_course_ids = new Set(JSON.parse(localStorage.getItem(HIDDEN_COURSES_STORAGE_KEY) || "[]"));
 let hidden_types = new Set(JSON.parse(localStorage.getItem(HIDDEN_TYPES_STORAGE_KEY) || "[]"));
@@ -163,6 +163,9 @@ function update_scrollbar_indicator(calendar_container) {
     });
 }
 
+// Builds and returns a calendar item element for the given item and course.
+// item is expected to have due_date, name, url, completed, and optionally start_date.
+// course is expected to have a name property.
 function create_assignment_element(item, course) {
     const assignment_container = document.createElement("a");
     assignment_container.className = "calendar-item";
@@ -176,75 +179,75 @@ function create_assignment_element(item, course) {
         assignment_container.classList.add("not-yet-available");
     }
 
-    const itemName = document.createElement("div");
-    itemName.className = "item-name";
-    itemName.textContent = item.name;
+    const item_name = document.createElement("div");
+    item_name.className = "item-name";
+    item_name.textContent = item.name;
 
     const item_meta = document.createElement("div");
     item_meta.className = "item-meta";
 
     if (item.start_date) {
-        const startDateContainer = document.createElement("div");
-        startDateContainer.className = "start-date-container";
+        const start_date_container = document.createElement("div");
+        start_date_container.className = "start-date-container";
 
-        const startDateValue = document.createElement("span");
-        startDateValue.className = "start-date-value";
-        startDateValue.textContent = "Available on " + formatFullDatetime(item.start_date);
-        startDateContainer.appendChild(startDateValue);
+        const start_date_value = document.createElement("span");
+        start_date_value.className = "start-date-value";
+        start_date_value.textContent = "Available on " + formatFullDatetime(item.start_date);
+        start_date_container.appendChild(start_date_value);
 
-        item_meta.appendChild(startDateContainer);
+        item_meta.appendChild(start_date_container);
     }
 
-    const dueContainer = document.createElement("div");
-    dueContainer.className = "due-date-container";
+    const due_container = document.createElement("div");
+    due_container.className = "due-date-container";
 
-    const dueTime = document.createElement("span");
-    dueTime.className = "item-time";
-    dueTime.textContent = formatTimeFromDate(item.due_date);
-    const dueDateOnly = getDateOnly(item.due_date);
-    const tomorrowDateOnly = new Date(now_date_only);
-    tomorrowDateOnly.setDate(tomorrowDateOnly.getDate() + 1);
+    const due_time = document.createElement("span");
+    due_time.className = "item-time";
+    due_time.textContent = formatTimeFromDate(item.due_date);
+    const due_date_only = getDateOnly(item.due_date);
+    const tomorrow_date_only = new Date(now_date_only);
+    tomorrow_date_only.setDate(tomorrow_date_only.getDate() + 1);
     // Incomplete and past due
-    if (!item.completed && dueDateOnly < now_date_only) {
-        dueTime.style.color = OVERDUE_COLOR;
+    if (!item.completed && due_date_only < now_date_only) {
+        due_time.style.color = OVERDUE_COLOR;
     // Due today
-    } else if (dueDateOnly && dueDateOnly.getTime() === now_date_only.getTime()) {
-        dueTime.style.color = DUE_TODAY_COLOR;
+    } else if (due_date_only && due_date_only.getTime() === now_date_only.getTime()) {
+        due_time.style.color = DUE_TODAY_COLOR;
     // Due tomorrow
-    } else if (dueDateOnly && dueDateOnly.getTime() === tomorrowDateOnly.getTime()) {
-        dueTime.style.color = DUE_TOMORROW_COLOR;
+    } else if (due_date_only && due_date_only.getTime() === tomorrow_date_only.getTime()) {
+        due_time.style.color = DUE_TOMORROW_COLOR;
     }
-    dueContainer.appendChild(dueTime);
+    due_container.appendChild(due_time);
 
-    const metaSeparator = document.createElement("span");
-    metaSeparator.className = "item-meta-separator";
-    metaSeparator.textContent = "|";
-    dueContainer.appendChild(metaSeparator);
+    const meta_separator = document.createElement("span");
+    meta_separator.className = "item-meta-separator";
+    meta_separator.textContent = "|";
+    due_container.appendChild(meta_separator);
 
-    const itemCourse = document.createElement("span");
-    itemCourse.className = "item-course";
-    itemCourse.dataset.fullName = course.name;
+    const item_course = document.createElement("span");
+    item_course.className = "item-course";
+    item_course.dataset.fullName = course.name;
 
-    const courseDot = document.createElement("span");
-    courseDot.className = "item-course-dot";
-    courseDot.textContent = "●";
-    courseDot.style.color = getCourseColor(course.name);
-    itemCourse.appendChild(courseDot);
-    itemCourse.appendChild(document.createTextNode(truncate_course_name(course.name)));
+    const course_dot = document.createElement("span");
+    course_dot.className = "item-course-dot";
+    course_dot.textContent = "●";
+    course_dot.style.color = getCourseColor(course.name);
+    item_course.appendChild(course_dot);
+    item_course.appendChild(document.createTextNode(truncate_course_name(course.name)));
 
-    dueContainer.appendChild(itemCourse);
+    due_container.appendChild(item_course);
 
-    item_meta.appendChild(dueContainer);
+    item_meta.appendChild(due_container);
 
-    const itemContent = document.createElement("div");
-    itemContent.className = "item-content";
-    itemContent.appendChild(itemName);
-    itemContent.appendChild(item_meta);
-    assignment_container.appendChild(itemContent);
+    const item_content = document.createElement("div");
+    item_content.className = "item-content";
+    item_content.appendChild(item_name);
+    item_content.appendChild(item_meta);
+    assignment_container.appendChild(item_content);
 
     assignment_container.addEventListener("click", function(e) {
         e.preventDefault();
-        window.open(item.url, '_blank');
+        window.open(item.url, "_blank");
     });
 
     const badge = document.createElement("div");
@@ -259,68 +262,75 @@ export function initialize_gui() {
     update_gui({}, true);
 }
 
-export function add_data_status_indicator(isStale) {
-    const chartContainer = document.getElementById("frequency-chart");
-    const calendarContainer = document.getElementById("calendar-container");
-    const targetContainer = chartContainer || calendarContainer;
-    if (!targetContainer) return;
+// Shows or removes the "Fetching latest data..." loading indicator in the calendar.
+// Prefers appending to the frequency chart container, falling back to the calendar container.
+export function add_data_status_indicator(is_stale) {
+    const chart_container = document.getElementById("frequency-chart");
+    const calendar_container = document.getElementById("calendar-container");
+    const target_container = chart_container || calendar_container;
+    if (!target_container) return;
 
-    const existingIndicator = document.querySelector(".data-status-indicator");
-    if (existingIndicator) existingIndicator.remove();
+    const existing_indicator = document.querySelector(".data-status-indicator");
+    if (existing_indicator) existing_indicator.remove();
 
-    if (isStale) {
+    if (is_stale) {
         const indicator = document.createElement("div");
         indicator.className = "data-status-indicator loading";
         indicator.innerHTML = '<span class="spinner"></span> Fetching latest data...';
-        targetContainer.appendChild(indicator);
+        target_container.appendChild(indicator);
     }
 }
 
-export function update_gui(courseData, isFromCache = false) {
-    const calendarContainer = document.getElementById("calendar-container");
-    if (!calendarContainer) return;
+/**
+ * Re-renders the full calendar panel from the provided course data.
+ * @param {Object} course_data - Map of courseId → course object with assignments/quizzes/discussions.
+ * @param {boolean} is_from_cache - When true, shows the "Fetching latest data..." stale indicator.
+ */
+export function update_gui(course_data, is_from_cache = false) {
+    const calendar_container = document.getElementById("calendar-container");
+    if (!calendar_container) return;
 
-    _lastCourseData = courseData;
-    ensureCourseColorsAssigned(courseData);
-    updateSettingsCourseList(courseData);
+    _last_course_data = course_data;
+    ensureCourseColorsAssigned(course_data);
+    update_settings_course_list(course_data);
 
-    const existingChart = calendarContainer.querySelector("#frequency-chart");
-    const preservedWeekOffset = existingChart ? (existingChart._weekOffset || 0) : 0;
+    const existing_chart = calendar_container.querySelector("#frequency-chart");
+    const preserved_week_offset = existing_chart ? (existing_chart._weekOffset || 0) : 0;
 
-    calendarContainer.innerHTML = "";
+    calendar_container.innerHTML = "";
 
     // Collect all items with due dates
-    const itemsByDate = {};
-    let minDate = null;
-    let maxDate = null;
+    const items_by_date = {};
+    let min_date = null;
+    let max_date = null;
 
-    Object.keys(courseData).forEach((courseId) => {
-        const course = courseData[courseId];
+    Object.keys(course_data).forEach((course_id) => {
+        const course = course_data[course_id];
 
-        if (hidden_course_ids.has(courseId)) return;
+        if (hidden_course_ids.has(course_id)) return;
 
-        const itemCollections = [
-            { items: course.assignments, type: "assignments", showCompleted: true },
-            { items: course.quizzes, type: "quizzes", showCompleted: true },
-            { items: course.discussions, type: "discussions", showCompleted: true }
+        const item_collections = [
+            { items: course.assignments, type: "assignments", show_completed: true },
+            { items: course.quizzes, type: "quizzes", show_completed: true },
+            { items: course.discussions, type: "discussions", show_completed: true }
         ];
 
-        itemCollections.forEach(({ items, type, showCompleted }) => {
+        item_collections.forEach(({ items, type, show_completed }) => {
             if (hidden_types.has(type)) return;
             if (items) {
-                Object.keys(items).forEach((itemId) => {
-                    const item = items[itemId];
-                    if (item.due_date && (!item.completed || showCompleted)) {
-                        const dateOnly = getDateOnly(item.due_date);
-                        if (dateOnly) {
-                            const dateKey = dateOnly.toISOString().split('T')[0];
-                            if (!itemsByDate[dateKey]) {
-                                itemsByDate[dateKey] = [];
+                Object.keys(items).forEach((item_id) => {
+                    const item = items[item_id];
+                    if (item.due_date && (!item.completed || show_completed)) {
+                        const date_only = getDateOnly(item.due_date);
+                        if (date_only) {
+                            const date_key = date_only.toISOString().split("T")[0];
+                            if (!items_by_date[date_key]) {
+                                items_by_date[date_key] = [];
                             }
-                            itemsByDate[dateKey].push({ item, course });
+                            items_by_date[date_key].push({ item, course });
 
-                            if (!minDate || dateOnly < minDate) minDate = dateOnly;
-                            if (!maxDate || dateOnly > maxDate) maxDate = dateOnly;
+                            if (!min_date || date_only < min_date) min_date = date_only;
+                            if (!max_date || date_only > max_date) max_date = date_only;
                         }
                     }
                 });
@@ -330,94 +340,96 @@ export function update_gui(courseData, isFromCache = false) {
 
     // Always create frequency chart (contains settings, refresh, and FAQ buttons)
     try {
-        if (typeof createFrequencyChart === 'function' && typeof getWeekStart === 'function' && typeof getDateKey === 'function') {
-            createFrequencyChart(calendarContainer, itemsByDate, preservedWeekOffset);
+        if (typeof create_frequency_chart === "function" && typeof getWeekStart === "function" && typeof getDateKey === "function") {
+            create_frequency_chart(calendar_container, items_by_date, preserved_week_offset);
         }
     } catch (e) {
         console.error("Error creating frequency chart (non-fatal):", e);
     }
 
-    if (isFromCache) {
+    if (is_from_cache) {
         add_data_status_indicator(true);
     }
 
     // Empty state — chart is already rendered above for the buttons and loading indicator
-    if (!minDate || !maxDate) {
-        const existingIndicator = calendarContainer.parentElement.querySelector(".scrollbar-indicator");
-        if (existingIndicator) existingIndicator.remove();
-        const emptyMessage = document.createElement("div");
-        emptyMessage.id = "loading-indicator";
-        emptyMessage.textContent = "No upcoming assignments";
-        calendarContainer.appendChild(emptyMessage);
+    if (!min_date || !max_date) {
+        const existing_indicator = calendar_container.parentElement.querySelector(".scrollbar-indicator");
+        if (existing_indicator) existing_indicator.remove();
+        const empty_message = document.createElement("div");
+        empty_message.id = "loading-indicator";
+        empty_message.textContent = "No upcoming assignments";
+        calendar_container.appendChild(empty_message);
         return;
     }
 
-    // Generate calendar from CALENDAR_START_DAYS_BACK days before today to maxDate
+    // Generate calendar from CALENDAR_START_DAYS_BACK days before today to max_date
     const today = new Date();
-    const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    startDate.setDate(startDate.getDate() - CALENDAR_START_DAYS_BACK);
-    const endDate = new Date(maxDate);
+    const start_date = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    start_date.setDate(start_date.getDate() - CALENDAR_START_DAYS_BACK);
+    const end_date = new Date(max_date);
 
-    let currentDate = new Date(startDate);
-    while (currentDate <= endDate) {
-        const dateKey = currentDate.toISOString().split('T')[0];
-        const items = itemsByDate[dateKey] || [];
+    let current_date = new Date(start_date);
+    while (current_date <= end_date) {
+        const date_key = current_date.toISOString().split("T")[0];
+        const items = items_by_date[date_key] || [];
 
-        const dateHeader = document.createElement("div");
-        dateHeader.className = "calendar-date-header";
-        const dateHeaderText = formatDateHeader(currentDate);
-        dateHeader.innerHTML = `<div class="date-title">${dateHeaderText}</div>`;
-        calendarContainer.appendChild(dateHeader);
+        const date_header = document.createElement("div");
+        date_header.className = "calendar-date-header";
+        const date_header_text = formatDateHeader(current_date);
+        date_header.innerHTML = `<div class="date-title">${date_header_text}</div>`;
+        calendar_container.appendChild(date_header);
 
-        const itemsContainer = document.createElement("div");
-        itemsContainer.className = "calendar-items-container";
+        const items_container = document.createElement("div");
+        items_container.className = "calendar-items-container";
 
         if (items.length === 0) {
-            const emptyNotice = document.createElement("div");
-            emptyNotice.className = "empty-day-notice";
-            emptyNotice.textContent = "No assignments due";
-            itemsContainer.appendChild(emptyNotice);
+            const empty_notice = document.createElement("div");
+            empty_notice.className = "empty-day-notice";
+            empty_notice.textContent = "No assignments due";
+            items_container.appendChild(empty_notice);
         } else {
             items.forEach(({ item, course }) => {
                 const element = create_assignment_element(item, course);
-                itemsContainer.appendChild(element);
+                items_container.appendChild(element);
             });
         }
 
-        calendarContainer.appendChild(itemsContainer);
-        currentDate.setDate(currentDate.getDate() + 1);
+        calendar_container.appendChild(items_container);
+        current_date.setDate(current_date.getDate() + 1);
     }
 
-    create_scrollbar_indicator(calendarContainer);
+    create_scrollbar_indicator(calendar_container);
 }
 
-function createFrequencyChart(calendarContainer, itemsByDate, initialWeekOffset = 0) {
+// Builds the frequency chart widget and inserts it at the top of calendar_container.
+// items_by_date is a map of ISO date string → array of { item, course } objects.
+function create_frequency_chart(calendar_container, items_by_date, initial_week_offset = 0) {
     // Get the week containing today
     const today = new Date();
-    const todayWeekStart = getWeekStart(today);
+    const today_week_start = getWeekStart(today);
 
     // Create chart container
-    const chartContainer = document.createElement("div");
-    chartContainer.className = "frequency-chart-container";
-    chartContainer.id = "frequency-chart";
+    const chart_container = document.createElement("div");
+    chart_container.className = "frequency-chart-container";
+    chart_container.id = "frequency-chart";
 
     // Store current week and offset
-    chartContainer._todayWeekStart = todayWeekStart.getTime();
-    chartContainer._weekOffset = initialWeekOffset;
-    chartContainer._calendarContainer = calendarContainer; // Store for click-to-scroll
+    chart_container._todayWeekStart = today_week_start.getTime();
+    chart_container._weekOffset = initial_week_offset;
+    chart_container._calendarContainer = calendar_container; // Store for click-to-scroll
 
-    const prevBtn = document.createElement("button");
-    prevBtn.className = "frequency-chart-btn";
-    prevBtn.textContent = "‹";
-    prevBtn.disabled = true;
-    prevBtn.id = "frequency-chart-prev";
-    prevBtn.title = "Previous week";
+    const prev_btn = document.createElement("button");
+    prev_btn.className = "frequency-chart-btn";
+    prev_btn.textContent = "‹";
+    prev_btn.disabled = true;
+    prev_btn.id = "frequency-chart-prev";
+    prev_btn.title = "Previous week";
 
-    const nextBtn = document.createElement("button");
-    nextBtn.className = "frequency-chart-btn";
-    nextBtn.textContent = "›";
-    nextBtn.id = "frequency-chart-next";
-    nextBtn.title = "Next week";
+    const next_btn = document.createElement("button");
+    next_btn.className = "frequency-chart-btn";
+    next_btn.textContent = "›";
+    next_btn.id = "frequency-chart-next";
+    next_btn.title = "Next week";
 
     // Create grid container
     const grid = document.createElement("div");
@@ -425,106 +437,106 @@ function createFrequencyChart(calendarContainer, itemsByDate, initialWeekOffset 
     grid.id = "frequency-chart-grid";
 
     // Week label row (label + FAQ button)
-    const weekLabelRow = document.createElement("div");
-    weekLabelRow.className = "frequency-chart-header-row";
+    const week_label_row = document.createElement("div");
+    week_label_row.className = "frequency-chart-header-row";
 
-    const weekLabel = document.createElement("div");
-    weekLabel.className = "frequency-chart-week-label";
-    weekLabel.id = "frequency-chart-week-label";
+    const week_label = document.createElement("div");
+    week_label.className = "frequency-chart-week-label";
+    week_label.id = "frequency-chart-week-label";
 
-    const settingsBtn = document.createElement("button");
-    settingsBtn.className = "spark-settings-btn";
-    settingsBtn.title = "Settings";
-    settingsBtn.textContent = "⚙";
-    settingsBtn.addEventListener("click", (e) => {
+    const settings_btn = document.createElement("button");
+    settings_btn.className = "spark-settings-btn";
+    settings_btn.title = "Settings";
+    settings_btn.textContent = "⚙";
+    settings_btn.addEventListener("click", (e) => {
         e.stopPropagation();
-        let settingsPanel = document.getElementById("spark-settings-panel");
-        if (!settingsPanel) {
-            settingsPanel = build_settings_panel();
-            document.body.appendChild(settingsPanel);
+        let settings_panel = document.getElementById("spark-settings-panel");
+        if (!settings_panel) {
+            settings_panel = build_settings_panel();
+            document.body.appendChild(settings_panel);
         }
-        settingsPanel.classList.toggle("open");
-        settingsPanel.style.right = panel_width + "px";
-        const isOpen = settingsPanel.classList.contains("open");
-        safe_send_message({ action: isOpen ? Action.BROADCAST_SETTINGS_OPENED : Action.BROADCAST_SETTINGS_CLOSED });
+        settings_panel.classList.toggle("open");
+        settings_panel.style.right = panel_width + "px";
+        const is_open = settings_panel.classList.contains("open");
+        safe_send_message({ action: is_open ? Action.BROADCAST_SETTINGS_OPENED : Action.BROADCAST_SETTINGS_CLOSED });
     });
-    weekLabelRow.appendChild(settingsBtn);
+    week_label_row.appendChild(settings_btn);
 
-    const refreshBtn = document.createElement("button");
-    refreshBtn.className = "spark-refresh-btn";
-    refreshBtn.title = "Refresh";
-    refreshBtn.textContent = "↻";
-    refreshBtn.addEventListener("click", (e) => {
+    const refresh_btn = document.createElement("button");
+    refresh_btn.className = "spark-refresh-btn";
+    refresh_btn.title = "Refresh";
+    refresh_btn.textContent = "↻";
+    refresh_btn.addEventListener("click", (e) => {
         e.stopPropagation();
-        refreshBtn.classList.add("spinning");
-        refreshBtn.addEventListener("animationend", () => refreshBtn.classList.remove("spinning"), { once: true });
+        refresh_btn.classList.add("spinning");
+        refresh_btn.addEventListener("animationend", () => refresh_btn.classList.remove("spinning"), { once: true });
         if (_on_refresh) _on_refresh();
     });
-    weekLabelRow.appendChild(refreshBtn);
+    week_label_row.appendChild(refresh_btn);
 
     // Week label is added above buttons so it stays left-aligned while buttons below are right-aligned
-    weekLabelRow.appendChild(weekLabel);
+    week_label_row.appendChild(week_label);
 
-    const faqSpacer = document.createElement("div");
-    faqSpacer.className = "spark-btn-spacer";
-    weekLabelRow.appendChild(faqSpacer);
+    const faq_spacer = document.createElement("div");
+    faq_spacer.className = "spark-btn-spacer";
+    week_label_row.appendChild(faq_spacer);
 
-    const faqBtn = document.createElement("button");
-    faqBtn.className = "faq-btn";
-    faqBtn.title = "Help / FAQ";
-    faqBtn.textContent = "?";
-    faqBtn.addEventListener("click", (e) => {
+    const faq_btn = document.createElement("button");
+    faq_btn.className = "faq-btn";
+    faq_btn.title = "Help / FAQ";
+    faq_btn.textContent = "?";
+    faq_btn.addEventListener("click", (e) => {
         e.stopPropagation();
         safe_send_message({ action: Action.OPEN_FAQ });
     });
-    weekLabelRow.appendChild(faqBtn);
+    week_label_row.appendChild(faq_btn);
 
-    chartContainer.appendChild(weekLabelRow);
+    chart_container.appendChild(week_label_row);
 
     // Wrap grid + side buttons in a single row
-    const chartRow = document.createElement("div");
-    chartRow.className = "frequency-chart-row";
-    chartRow.appendChild(prevBtn);
-    chartRow.appendChild(grid);
-    chartRow.appendChild(nextBtn);
-    chartContainer.appendChild(chartRow);
+    const chart_row = document.createElement("div");
+    chart_row.className = "frequency-chart-row";
+    chart_row.appendChild(prev_btn);
+    chart_row.appendChild(grid);
+    chart_row.appendChild(next_btn);
+    chart_container.appendChild(chart_row);
 
     if (SHOW_LAST_FETCHED) {
-        const lastFetchedEl = document.createElement("div");
-        lastFetchedEl.className = "frequency-chart-last-fetched";
-        lastFetchedEl.textContent = last_fetched_time
+        const last_fetched_el = document.createElement("div");
+        last_fetched_el.className = "frequency-chart-last-fetched";
+        last_fetched_el.textContent = last_fetched_time
             ? "Last fetched: " + last_fetched_time.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })
             : "Last fetched: —";
-        chartContainer.appendChild(lastFetchedEl);
+        chart_container.appendChild(last_fetched_el);
     }
 
     // Initial render
     try {
-        renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, initialWeekOffset, calendarContainer);
-        updateFrequencyNavButtons(chartContainer);
+        render_frequency_chart(chart_container, items_by_date, today_week_start, initial_week_offset, calendar_container);
+        update_frequency_nav_buttons(chart_container);
     } catch (e) {
         console.error("Error rendering frequency chart:", e);
     }
 
     // Add button event listeners with error handling
-    prevBtn.addEventListener("click", () => {
+    prev_btn.addEventListener("click", () => {
         try {
-            const offset = chartContainer._weekOffset;
+            const offset = chart_container._weekOffset;
             if (offset > 0) {
-                chartContainer._weekOffset = offset - 1;
-                renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, chartContainer._weekOffset, calendarContainer);
-                updateFrequencyNavButtons(chartContainer);
+                chart_container._weekOffset = offset - 1;
+                render_frequency_chart(chart_container, items_by_date, today_week_start, chart_container._weekOffset, calendar_container);
+                update_frequency_nav_buttons(chart_container);
             }
         } catch (e) {
             console.error("Error in prev button click:", e);
         }
     });
 
-    nextBtn.addEventListener("click", () => {
+    next_btn.addEventListener("click", () => {
         try {
-            chartContainer._weekOffset += 1;
-            renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, chartContainer._weekOffset, calendarContainer);
-            updateFrequencyNavButtons(chartContainer);
+            chart_container._weekOffset += 1;
+            render_frequency_chart(chart_container, items_by_date, today_week_start, chart_container._weekOffset, calendar_container);
+            update_frequency_nav_buttons(chart_container);
         } catch (e) {
             console.error("Error in next button click:", e);
         }
@@ -532,151 +544,150 @@ function createFrequencyChart(calendarContainer, itemsByDate, initialWeekOffset 
 
     // Insert at the beginning of the calendar
     try {
-        calendarContainer.insertBefore(chartContainer, calendarContainer.firstChild);
+        calendar_container.insertBefore(chart_container, calendar_container.firstChild);
     } catch (e) {
         console.error("Error inserting frequency chart:", e);
-        calendarContainer.appendChild(chartContainer);
+        calendar_container.appendChild(chart_container);
     }
 }
 
-function renderFrequencyChart(chartContainer, itemsByDate, todayWeekStart, weekOffset, calendarContainer) {
+// Renders the frequency chart grid for the given week offset into chart_container.
+// today_week_start may be a Date or a numeric timestamp.
+function render_frequency_chart(chart_container, items_by_date, today_week_start, week_offset, calendar_container) {
     try {
-        const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const grid = chartContainer.querySelector("#frequency-chart-grid");
+        const grid = chart_container.querySelector("#frequency-chart-grid");
         if (!grid) return; // Safety check
 
         grid.innerHTML = "";
-        if (!calendarContainer) calendarContainer = chartContainer._calendarContainer; // Fallback
+        if (!calendar_container) calendar_container = chart_container._calendarContainer; // Fallback
 
         // Calculate the week to display - convert timestamp back to Date if needed
-        let displayWeekStart;
-        if (typeof todayWeekStart === 'number') {
-            displayWeekStart = new Date(todayWeekStart);
+        let display_week_start;
+        if (typeof today_week_start === "number") {
+            display_week_start = new Date(today_week_start);
         } else {
-            displayWeekStart = new Date(todayWeekStart.getFullYear(), todayWeekStart.getMonth(), todayWeekStart.getDate());
+            display_week_start = new Date(today_week_start.getFullYear(), today_week_start.getMonth(), today_week_start.getDate());
         }
-        displayWeekStart.setDate(displayWeekStart.getDate() + (weekOffset * 7));
+        display_week_start.setDate(display_week_start.getDate() + (week_offset * DAYS_IN_WEEK));
 
         // Update week label
-        const weekLabelEl = chartContainer.querySelector("#frequency-chart-week-label");
-        if (weekLabelEl) {
-            const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-            weekLabelEl.textContent = `Week of ${monthNames[displayWeekStart.getMonth()]} ${displayWeekStart.getDate()}`;
+        const week_label_el = chart_container.querySelector("#frequency-chart-week-label");
+        if (week_label_el) {
+            week_label_el.textContent = `Week of ${MONTH_NAMES_SHORT[display_week_start.getMonth()]} ${display_week_start.getDate()}`;
         }
 
         // Count assignments by day of the week
-        const weekCounts = [0, 0, 0, 0, 0, 0, 0];
-        let maxCount = 0;
+        const week_counts = [0, 0, 0, 0, 0, 0, 0];
+        let max_count = 0;
 
-        for (let i = 0; i < 7; i++) {
-            const dayDate = new Date(displayWeekStart);
-            dayDate.setDate(dayDate.getDate() + i);
-            const dateKey = getDateKey(dayDate);
+        for (let i = 0; i < DAYS_IN_WEEK; i++) {
+            const day_date = new Date(display_week_start);
+            day_date.setDate(day_date.getDate() + i);
+            const date_key = getDateKey(day_date);
             // Count only incomplete items for the frequency chart to reflect actionable workload
             // In the future this could be a user setting to toggle completed items on/off in the chart
-            const count = itemsByDate[dateKey]?.filter(({ item }) => !item.completed).length || 0;
-            weekCounts[i] = count;
-            maxCount = Math.max(maxCount, count);
+            const count = items_by_date[date_key]?.filter(({ item }) => !item.completed).length || 0;
+            week_counts[i] = count;
+            max_count = Math.max(max_count, count);
         }
 
-
         // Create day cells
-        for (let i = 0; i < 7; i++) {
-            const dayDate = new Date(displayWeekStart);
-            dayDate.setDate(dayDate.getDate() + i);
-            const count = weekCounts[i];
-            const heightPercent = maxCount === 0 ? 0 : (count / maxCount) * 100;
+        for (let i = 0; i < DAYS_IN_WEEK; i++) {
+            const day_date = new Date(display_week_start);
+            day_date.setDate(day_date.getDate() + i);
+            const count = week_counts[i];
+            const height_percent = max_count === 0 ? 0 : (count / max_count) * 100;
 
-            const dayCell = document.createElement("div");
-            dayCell.className = "frequency-day";
-            const todayCheck = new Date();
+            const day_cell = document.createElement("div");
+            day_cell.className = "frequency-day";
+            const today_check = new Date();
             if (
-                dayDate.getFullYear() === todayCheck.getFullYear() &&
-                dayDate.getMonth() === todayCheck.getMonth() &&
-                dayDate.getDate() === todayCheck.getDate()
+                day_date.getFullYear() === today_check.getFullYear() &&
+                day_date.getMonth() === today_check.getMonth() &&
+                day_date.getDate() === today_check.getDate()
             ) {
-                dayCell.classList.add("frequency-day--today");
+                day_cell.classList.add("frequency-day--today");
             }
 
-            const dayLabel = document.createElement("div");
-            dayLabel.className = "frequency-day-label";
-            dayLabel.textContent = dayLabels[i];
-            dayCell.appendChild(dayLabel);
+            const day_label = document.createElement("div");
+            day_label.className = "frequency-day-label";
+            day_label.textContent = DAY_LABELS[i];
+            day_cell.appendChild(day_label);
 
-            const dateNum = document.createElement("div");
-            dateNum.className = "frequency-day-date";
-            dateNum.textContent = dayDate.getDate();
-            dayCell.appendChild(dateNum);
+            const date_num = document.createElement("div");
+            date_num.className = "frequency-day-date";
+            date_num.textContent = day_date.getDate();
+            day_cell.appendChild(date_num);
 
-            const barContainer = document.createElement("div");
-            barContainer.className = "frequency-bar-container";
+            const bar_container = document.createElement("div");
+            bar_container.className = "frequency-bar-container";
 
             const bar = document.createElement("div");
             bar.className = "frequency-bar";
-            bar.style.height = heightPercent + "%";
-            barContainer.appendChild(bar);
-            dayCell.appendChild(barContainer);
+            bar.style.height = height_percent + "%";
+            bar_container.appendChild(bar);
+            day_cell.appendChild(bar_container);
 
-            const countLabel = document.createElement("div");
-            countLabel.className = "frequency-day-count";
-            countLabel.textContent = count > 0 ? count : "—";
-            dayCell.appendChild(countLabel);
+            const count_label = document.createElement("div");
+            count_label.className = "frequency-day-count";
+            count_label.textContent = count > 0 ? count : "—";
+            day_cell.appendChild(count_label);
 
             // Add click handler to scroll to this date
-            if (calendarContainer) {
-                dayCell.style.cursor = "pointer";
-                dayCell.addEventListener("click", () => {
-                    scrollToDate(calendarContainer, dayDate);
+            if (calendar_container) {
+                day_cell.style.cursor = "pointer";
+                day_cell.addEventListener("click", () => {
+                    scroll_to_date(calendar_container, day_date);
                 });
             }
 
-            grid.appendChild(dayCell);
+            grid.appendChild(day_cell);
         }
     } catch (e) {
-        console.error("Error in renderFrequencyChart:", e);
+        console.error("Error in render_frequency_chart:", e);
     }
 }
 
-function scrollToDate(calendarContainer, targetDate) {
+// Scrolls calendar_container to the date header matching target_date.
+function scroll_to_date(calendar_container, target_date) {
     try {
-        const dateHeaders = Array.from(calendarContainer.querySelectorAll(".calendar-date-header"));
+        const date_headers = Array.from(calendar_container.querySelectorAll(".calendar-date-header"));
 
-        for (const header of dateHeaders) {
-            const titleText = header.querySelector(".date-title")?.textContent || "";
-            const dateMatch = titleText.match(/(\w+)\s+(\d+)/);
+        for (const header of date_headers) {
+            const title_text = header.querySelector(".date-title")?.textContent || "";
+            const date_match = title_text.match(/(\w+)\s+(\d+)/);
 
-            if (dateMatch) {
-                const monthStr = dateMatch[1];
-                const day = parseInt(dateMatch[2]);
+            if (date_match) {
+                const month_str = date_match[1];
+                const day = parseInt(date_match[2]);
 
-                const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-                const monthIndex = months.findIndex(m => m.startsWith(monthStr.toLowerCase()));
+                const month_index = MONTH_NAMES_SHORT.findIndex(m => m.toLowerCase().startsWith(month_str.toLowerCase()));
 
-                if (monthIndex >= 0 && day === targetDate.getDate() && monthIndex === targetDate.getMonth()) {
+                if (month_index >= 0 && day === target_date.getDate() && month_index === target_date.getMonth()) {
                     // .calendar-date-header is position:sticky, so getBoundingClientRect().top
                     // returns the "stuck" position when scrolled past — not its natural layout position.
                     // Instead, measure its non-sticky sibling (.calendar-items-container) which always
                     // reflects the true layout position in the scrollable content.
-                    const chartEl = calendarContainer.querySelector("#frequency-chart");
-                    const chartHeight = chartEl ? chartEl.getBoundingClientRect().height : 0;
-                    const containerRect = calendarContainer.getBoundingClientRect();
+                    const chart_el = calendar_container.querySelector("#frequency-chart");
+                    const chart_height = chart_el ? chart_el.getBoundingClientRect().height : 0;
+                    const container_rect = calendar_container.getBoundingClientRect();
 
-                    const itemsContainer = header.nextElementSibling;
-                    let targetScroll;
-                    if (itemsContainer) {
-                        const itemsRect = itemsContainer.getBoundingClientRect();
+                    const items_container = header.nextElementSibling;
+                    let target_scroll;
+                    if (items_container) {
+                        const items_rect = items_container.getBoundingClientRect();
                         // Absolute position of the items container within scrollable content
-                        const itemsAbsolutePos = itemsRect.top - containerRect.top + calendarContainer.scrollTop;
+                        const items_absolute_pos = items_rect.top - container_rect.top + calendar_container.scrollTop;
                         // The header sits directly above the items container; offsetHeight is unaffected by sticky
-                        targetScroll = Math.max(0, itemsAbsolutePos - header.offsetHeight - chartHeight);
+                        target_scroll = Math.max(0, items_absolute_pos - header.offsetHeight - chart_height);
                     } else {
                         // Fallback for a header with no following sibling
-                        const headerRect = header.getBoundingClientRect();
-                        const absolutePos = headerRect.top - containerRect.top + calendarContainer.scrollTop;
-                        targetScroll = Math.max(0, absolutePos - chartHeight);
+                        const header_rect = header.getBoundingClientRect();
+                        const absolute_pos = header_rect.top - container_rect.top + calendar_container.scrollTop;
+                        target_scroll = Math.max(0, absolute_pos - chart_height);
                     }
 
-                    calendarContainer.scrollTo({ top: targetScroll, behavior: "smooth" });
+                    calendar_container.scrollTo({ top: target_scroll, behavior: "smooth" });
                     return;
                 }
             }
@@ -686,57 +697,59 @@ function scrollToDate(calendarContainer, targetDate) {
     }
 }
 
-function updateFrequencyNavButtons(chartContainer) {
+// Updates the prev/next navigation buttons based on the current week offset.
+function update_frequency_nav_buttons(chart_container) {
     try {
-        const prevBtn = chartContainer.querySelector("#frequency-chart-prev");
-        const nextBtn = chartContainer.querySelector("#frequency-chart-next");
-        if (!prevBtn || !nextBtn) return;
+        const prev_btn = chart_container.querySelector("#frequency-chart-prev");
+        const next_btn = chart_container.querySelector("#frequency-chart-next");
+        if (!prev_btn || !next_btn) return;
 
-        const offset = chartContainer._weekOffset || 0;
+        const offset = chart_container._weekOffset || 0;
 
         // Prev button disabled when at current week
-        prevBtn.disabled = offset <= 0;
+        prev_btn.disabled = offset <= 0;
 
         // Next button always enabled (no upper limit)
-        nextBtn.disabled = false;
+        next_btn.disabled = false;
     } catch (e) {
         console.error("Error updating frequency nav buttons:", e);
     }
 }
 
 // Returns a plain object snapshot of all user-configurable settings.
-function getAllSettings() {
+function get_all_settings() {
     return {
-        daysBack: CALENDAR_START_DAYS_BACK,
-        hiddenCourses: [...hidden_course_ids],
-        hiddenTypesArr: [...hidden_types],
+        days_back: CALENDAR_START_DAYS_BACK,
+        hidden_courses: [...hidden_course_ids],
+        hidden_types_arr: [...hidden_types],
     };
 }
 
 // Applies a settings object (from chrome.storage or a broadcast message) to
 // in-memory state, localStorage, and any currently-open settings panel UI.
-export function apply_settings({ daysBack, hiddenCourses, hiddenTypesArr }) {
-    CALENDAR_START_DAYS_BACK = daysBack;
-    hidden_course_ids = new Set(hiddenCourses);
-    hidden_types = new Set(hiddenTypesArr);
+export function apply_settings({ days_back, hidden_courses, hidden_types_arr }) {
+    CALENDAR_START_DAYS_BACK = days_back;
+    hidden_course_ids = new Set(hidden_courses);
+    hidden_types = new Set(hidden_types_arr);
 
     // Keep localStorage in sync so the initial module-level reads stay warm.
-    localStorage.setItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY, daysBack.toString());
-    localStorage.setItem(HIDDEN_COURSES_STORAGE_KEY, JSON.stringify(hiddenCourses));
-    localStorage.setItem(HIDDEN_TYPES_STORAGE_KEY, JSON.stringify(hiddenTypesArr));
+    localStorage.setItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY, days_back.toString());
+    localStorage.setItem(HIDDEN_COURSES_STORAGE_KEY, JSON.stringify(hidden_courses));
+    localStorage.setItem(HIDDEN_TYPES_STORAGE_KEY, JSON.stringify(hidden_types_arr));
 
     // Sync the settings panel UI if it is currently rendered.
-    const daysInput = document.getElementById("spark-setting-days-back");
-    if (daysInput) daysInput.value = daysBack.toString();
+    const days_input = document.getElementById("spark-setting-days-back");
+    if (days_input) days_input.value = days_back.toString();
 
     ITEM_TYPES.forEach(({ key }) => {
         const cb = document.querySelector(`.settings-course-checkbox[data-setting-type="${key}"]`);
         if (cb) cb.checked = !hidden_types.has(key);
     });
 
-    updateSettingsCourseList(_lastCourseData);
+    update_settings_course_list(_last_course_data);
 }
 
+// Builds and returns the settings panel DOM element.
 export function build_settings_panel() {
     const panel = document.createElement("div");
     panel.id = "spark-settings-panel";
@@ -777,11 +790,11 @@ export function build_settings_panel() {
     input.max = "365";
     input.value = CALENDAR_START_DAYS_BACK.toString();
     input.addEventListener("change", () => {
-        const val = Math.max(0, Math.min(365, parseInt(input.value, 10) || 0));
+        const val = Math.max(0, Math.min(SETTINGS_MAX_DAYS_BACK, parseInt(input.value, 10) || 0));
         input.value = val.toString();
         CALENDAR_START_DAYS_BACK = val;
         localStorage.setItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY, val.toString());
-        safe_send_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: getAllSettings() });
+        safe_send_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: get_all_settings() });
         if (_on_rerender) _on_rerender();
     });
 
@@ -791,21 +804,21 @@ export function build_settings_panel() {
     body.appendChild(section);
 
     // Assignment types section
-    const typesSection = document.createElement("div");
-    typesSection.className = "settings-section";
+    const types_section = document.createElement("div");
+    types_section.className = "settings-section";
 
-    const typesLabel = document.createElement("div");
-    typesLabel.className = "settings-label";
-    typesLabel.textContent = "Visible assignment types";
+    const types_label = document.createElement("div");
+    types_label.className = "settings-label";
+    types_label.textContent = "Visible assignment types";
 
-    const typesDescription = document.createElement("p");
-    typesDescription.className = "settings-description";
-    typesDescription.textContent = "Uncheck a type to hide it from the calendar.";
+    const types_description = document.createElement("p");
+    types_description.className = "settings-description";
+    types_description.textContent = "Uncheck a type to hide it from the calendar.";
 
-    const typesList = document.createElement("div");
-    typesList.className = "settings-courses-list";
+    const types_list = document.createElement("div");
+    types_list.className = "settings-courses-list";
 
-    ITEM_TYPES.forEach(({ key, label: typeLabel }) => {
+    ITEM_TYPES.forEach(({ key, label: type_label }) => {
         const row = document.createElement("label");
         row.className = "settings-course-row";
 
@@ -821,68 +834,71 @@ export function build_settings_panel() {
                 hidden_types.add(key);
             }
             localStorage.setItem(HIDDEN_TYPES_STORAGE_KEY, JSON.stringify([...hidden_types]));
-            safe_send_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: getAllSettings() });
+            safe_send_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: get_all_settings() });
             if (_on_rerender) _on_rerender();
         });
 
         const name = document.createElement("span");
         name.className = "settings-course-name";
-        name.textContent = typeLabel;
+        name.textContent = type_label;
 
         row.appendChild(checkbox);
         row.appendChild(name);
-        typesList.appendChild(row);
+        types_list.appendChild(row);
     });
 
-    typesSection.appendChild(typesLabel);
-    typesSection.appendChild(typesDescription);
-    typesSection.appendChild(typesList);
-    body.appendChild(typesSection);
+    types_section.appendChild(types_label);
+    types_section.appendChild(types_description);
+    types_section.appendChild(types_list);
+    body.appendChild(types_section);
 
-    // Courses section (populated by updateSettingsCourseList)
-    const coursesSection = document.createElement("div");
-    coursesSection.className = "settings-section";
-    coursesSection.id = "spark-settings-courses";
+    // Courses section (populated by update_settings_course_list)
+    const courses_section = document.createElement("div");
+    courses_section.className = "settings-section";
+    courses_section.id = "spark-settings-courses";
 
-    const coursesLabel = document.createElement("div");
-    coursesLabel.className = "settings-label";
-    coursesLabel.textContent = "Visible courses";
+    const courses_label = document.createElement("div");
+    courses_label.className = "settings-label";
+    courses_label.textContent = "Visible courses";
 
-    const coursesDescription = document.createElement("p");
-    coursesDescription.className = "settings-description";
-    coursesDescription.textContent = "Uncheck a course to hide it from the calendar.";
+    const courses_description = document.createElement("p");
+    courses_description.className = "settings-description";
+    courses_description.textContent = "Uncheck a course to hide it from the calendar.";
 
-    const coursesList = document.createElement("div");
-    coursesList.id = "spark-settings-courses-list";
-    coursesList.className = "settings-courses-list";
+    const courses_list = document.createElement("div");
+    courses_list.id = "spark-settings-courses-list";
+    courses_list.className = "settings-courses-list";
 
-    coursesSection.appendChild(coursesLabel);
-    coursesSection.appendChild(coursesDescription);
-    coursesSection.appendChild(coursesList);
-    body.appendChild(coursesSection);
+    courses_section.appendChild(courses_label);
+    courses_section.appendChild(courses_description);
+    courses_section.appendChild(courses_list);
+    body.appendChild(courses_section);
 
     panel.appendChild(body);
 
     // Populate course list with whatever data was last received.
-    // Pass coursesList directly since the panel isn't in the DOM yet.
-    if (Object.keys(_lastCourseData).length > 0) {
-        updateSettingsCourseList(_lastCourseData, coursesList);
+    // Pass courses_list directly since the panel isn't in the DOM yet.
+    if (Object.keys(_last_course_data).length > 0) {
+        update_settings_course_list(_last_course_data, courses_list);
     }
 
     return panel;
 }
 
-function updateSettingsCourseList(courseData, listEl = null) {
-    const list = listEl || document.getElementById("spark-settings-courses-list");
+// Populates list_el (or the DOM element "spark-settings-courses-list") with a
+// checkbox row for each course in course_data. list_el is passed directly when
+// the panel isn't yet in the DOM.
+function update_settings_course_list(course_data, list_el = null) {
+    const list = list_el || document.getElementById("spark-settings-courses-list");
     if (!list) return;
 
     list.innerHTML = "";
 
-    Object.keys(courseData).forEach((courseId) => {
-        const course = courseData[courseId];
-        const displayName = truncate_course_name(course.name) || course.name;
+    Object.keys(course_data).forEach((course_id) => {
+        const course = course_data[course_id];
+        const display_name = truncate_course_name(course.name) || course.name;
         const color = getCourseColor(course.name);
-        const isHidden = hidden_course_ids.has(courseId);
+        const is_hidden = hidden_course_ids.has(course_id);
 
         const row = document.createElement("label");
         row.className = "settings-course-row";
@@ -890,15 +906,15 @@ function updateSettingsCourseList(courseData, listEl = null) {
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.className = "settings-course-checkbox";
-        checkbox.checked = !isHidden;
+        checkbox.checked = !is_hidden;
         checkbox.addEventListener("change", () => {
             if (checkbox.checked) {
-                hidden_course_ids.delete(courseId);
+                hidden_course_ids.delete(course_id);
             } else {
-                hidden_course_ids.add(courseId);
+                hidden_course_ids.add(course_id);
             }
             localStorage.setItem(HIDDEN_COURSES_STORAGE_KEY, JSON.stringify([...hidden_course_ids]));
-            safe_send_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: getAllSettings() });
+            safe_send_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: get_all_settings() });
             if (_on_rerender) _on_rerender();
         });
 
@@ -908,7 +924,7 @@ function updateSettingsCourseList(courseData, listEl = null) {
 
         const name = document.createElement("span");
         name.className = "settings-course-name";
-        name.textContent = displayName;
+        name.textContent = display_name;
         name.title = course.name;
 
         row.appendChild(checkbox);
