@@ -23,8 +23,6 @@ global.chrome = {
 
 // Imported directly from background.js to guarantee parity — never duplicate these here
 const {
-    SCROLL_POS_KEY,
-    SETTINGS_OPEN_KEY,
     SETTINGS_VALUE_KEY,
     D2L_URL_FILTER,
     FAQ_URL,
@@ -123,48 +121,6 @@ describe(Action.OPEN_FAQ, () => {
 });
 
 // ============================================================
-// saveScrollPosition
-// ============================================================
-
-describe(Action.SAVE_SCROLL_POSITION, () => {
-    test('persists the position value to local storage', () => {
-        on_message({ action: Action.SAVE_SCROLL_POSITION, position: 350 }, { tab: { id: 1 } }, jest.fn());
-
-        expect(chrome.storage.local.set).toHaveBeenCalledWith({ [SCROLL_POS_KEY]: 350 });
-    });
-});
-
-// ============================================================
-// getScrollPosition
-// ============================================================
-
-describe(Action.GET_SCROLL_POSITION, () => {
-    test('responds with the stored scroll position', () => {
-        chrome.storage.local.get.mockImplementation((keys, cb) => cb({ [SCROLL_POS_KEY]: 200 }));
-        const send_response = jest.fn();
-
-        on_message({ action: Action.GET_SCROLL_POSITION }, { tab: { id: 1 } }, send_response);
-
-        expect(send_response).toHaveBeenCalledWith({ position: 200 });
-    });
-
-    test('responds with 0 when no position has been stored', () => {
-        chrome.storage.local.get.mockImplementation((keys, cb) => cb({}));
-        const send_response = jest.fn();
-
-        on_message({ action: Action.GET_SCROLL_POSITION }, { tab: { id: 1 } }, send_response);
-
-        expect(send_response).toHaveBeenCalledWith({ position: 0 });
-    });
-
-    test('returns true to keep the message channel open for the async response', () => {
-        chrome.storage.local.get.mockImplementation((keys, cb) => cb({}));
-        const result = on_message({ action: Action.GET_SCROLL_POSITION }, { tab: { id: 1 } }, jest.fn());
-        expect(result).toBe(true);
-    });
-});
-
-// ============================================================
 // broadcastFetchStarted
 // ============================================================
 
@@ -216,52 +172,6 @@ describe(Action.BROADCAST_SETTINGS_CHANGED, () => {
         on_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings }, { tab: { id: 1 } }, jest.fn());
 
         expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { action: Action.SETTINGS_CHANGED, settings });
-    });
-});
-
-// ============================================================
-// broadcastSettingsOpened
-// ============================================================
-
-describe(Action.BROADCAST_SETTINGS_OPENED, () => {
-    test('persists open state as true in local storage', () => {
-        chrome.tabs.query.mockImplementation((q, cb) => cb([]));
-
-        on_message({ action: Action.BROADCAST_SETTINGS_OPENED }, { tab: { id: 1 } }, jest.fn());
-
-        expect(chrome.storage.local.set).toHaveBeenCalledWith({ [SETTINGS_OPEN_KEY]: true });
-    });
-
-    test('sends settingsOpened to other D2L tabs', () => {
-        const other_d2l_tab = make_d2l_tab(2);
-        chrome.tabs.query.mockImplementation((q, cb) => cb([other_d2l_tab]));
-
-        on_message({ action: Action.BROADCAST_SETTINGS_OPENED }, { tab: { id: 1 } }, jest.fn());
-
-        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { action: Action.SETTINGS_OPENED });
-    });
-});
-
-// ============================================================
-// broadcastSettingsClosed
-// ============================================================
-
-describe(Action.BROADCAST_SETTINGS_CLOSED, () => {
-    test('persists open state as false in local storage', () => {
-        chrome.tabs.query.mockImplementation((q, cb) => cb([]));
-
-        on_message({ action: Action.BROADCAST_SETTINGS_CLOSED }, { tab: { id: 1 } }, jest.fn());
-
-        expect(chrome.storage.local.set).toHaveBeenCalledWith({ [SETTINGS_OPEN_KEY]: false });
-    });
-
-    test('sends settingsClosed to other D2L tabs', () => {
-        const other_d2l_tab = make_d2l_tab(2);
-        chrome.tabs.query.mockImplementation((q, cb) => cb([other_d2l_tab]));
-
-        on_message({ action: Action.BROADCAST_SETTINGS_CLOSED }, { tab: { id: 1 } }, jest.fn());
-
-        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { action: Action.SETTINGS_CLOSED });
     });
 });
 

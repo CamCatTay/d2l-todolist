@@ -9,7 +9,6 @@ import { Action } from "./shared/actions";
 // Constants
 // ============================================================
 
-const SCROLL_POS_KEY = "spark-scroll-pos";
 const SETTINGS_VALUE_KEY = "spark-user-settings";
 const D2L_URL_FILTER = "/d2l/";
 const FAQ_URL = "https://camcattay.github.io/spark-for-brightspace/faq.html";
@@ -47,18 +46,6 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
         return;
     }
 
-    if (request.action === Action.SAVE_SCROLL_POSITION) {
-        chrome.storage.local.set({ [SCROLL_POS_KEY]: request.position });
-        return;
-    }
-
-    if (request.action === Action.GET_SCROLL_POSITION) {
-        chrome.storage.local.get([SCROLL_POS_KEY], function(result) {
-            sendResponse({ position: result[SCROLL_POS_KEY] || 0 });
-        });
-        return true; // keep channel open for async response
-    }
-
     // A tab started fetching — let other D2L tabs know so they can show the loading indicator.
     if (request.action === Action.BROADCAST_FETCH_STARTED) {
         broadcast_to_d2l_tabs(sender.tab.id, { action: Action.FETCH_STARTED });
@@ -92,7 +79,6 @@ chrome.action.onClicked.addListener((tab) => {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        SCROLL_POS_KEY,
         SETTINGS_VALUE_KEY,
         D2L_URL_FILTER,
         FAQ_URL,

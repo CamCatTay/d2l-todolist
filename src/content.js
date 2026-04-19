@@ -7,6 +7,7 @@ import {
     safe_send_message,
     inject_embedded_ui,
     register_panel_restore_callback,
+    register_panel_open_callback,
     toggle_panel,
     panel_width,
 } from "./ui/panel.js";
@@ -26,6 +27,8 @@ import {
 const COURSE_DATA_KEY = "courseData";
 const LAST_FETCHED_KEY = "spark-last-fetched";
 const SETTINGS_VALUE_KEY = "spark-user-settings";
+// Tab-local, session-scoped (sessionStorage — NOT synced across tabs):
+const SCROLL_POS_SESSION_KEY = "spark-scroll-pos";
 
 // ============================================================
 // State
@@ -58,27 +61,23 @@ window.addEventListener("load", () => {
 
     // -- Scroll persistence --
 
-    // Persist scroll position: save on scroll (debounced 300 ms)
+    // Persist scroll position to sessionStorage: saved on scroll (debounced 300 ms).
     let scroll_save_timer = null;
     calendar_container.addEventListener("scroll", () => {
         clearTimeout(scroll_save_timer);
         scroll_save_timer = setTimeout(() => {
-            safe_send_message({
-                action: Action.SAVE_SCROLL_POSITION,
-                position: calendar_container.scrollTop
-            });
+            sessionStorage.setItem(SCROLL_POS_SESSION_KEY, calendar_container.scrollTop.toString());
         }, 300);
     });
 
     // Returns nothing. Reads the stored scroll position and applies it to the calendar container.
     function restore_scroll_position() {
-        safe_send_message({ action: Action.GET_SCROLL_POSITION }, function(response) {
-            if (response && response.position > 0) {
-                requestAnimationFrame(() => {
-                    calendar_container.scrollTop = response.position;
-                });
-            }
-        });
+        const saved = parseInt(sessionStorage.getItem(SCROLL_POS_SESSION_KEY) || "0", 10);
+        if (saved > 0) {
+            requestAnimationFrame(() => {
+                calendar_container.scrollTop = saved;
+            });
+        }
     }
 
     // -- Panel restore --
@@ -148,6 +147,11 @@ window.addEventListener("load", () => {
 
     // Register refresh/re-render callbacks so the settings UI in components.js can trigger them
     register_ui_callbacks({ on_refresh: trigger_refresh, on_rerender: trigger_rerender });
+
+    // Restore scroll position whenever the panel is opened (including first open on a new tab).
+    register_panel_open_callback(() => {
+        restore_scroll_position();
+    });
 
     // Fetch fresh data from API
     _refresh_fn();

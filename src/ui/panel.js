@@ -29,6 +29,8 @@ let is_animating = false;
 let settings_was_open = false;
 // Callback invoked when the tab becomes visible with the panel open.
 let _on_panel_restore = null;
+// Callback invoked whenever the panel is opened (toggled open or restored).
+let _on_panel_open = null;
 
 // ============================================================
 // Internal Helpers
@@ -200,6 +202,15 @@ export function register_panel_restore_callback(fn) {
 }
 
 /**
+ * Registers a callback to be invoked whenever the panel is opened.
+ * Use this to restore scroll position or other per-open state.
+ * @param {Function} fn - The callback to register.
+ */
+export function register_panel_open_callback(fn) {
+    _on_panel_open = fn;
+}
+
+/**
  * Toggles the panel open or closed, handling settings panel state and animations.
  */
 export function toggle_panel() {
@@ -255,12 +266,16 @@ export function toggle_panel() {
                 }
                 sp.style.right = (typeof panel_width !== "undefined" ? panel_width : DEFAULT_PANEL_WIDTH) + "px";
                 sp.classList.add("open");
+                if (_on_panel_open) _on_panel_open();
                 // Settings transition completes after another SETTINGS_TRANSITION_MS
                 setTimeout(() => { is_animating = false; }, SETTINGS_TRANSITION_MS);
             }, PANEL_SLIDE_IN_MS);
         } else {
             // Wait for the panel slide-in animation to finish, then unblock interactions.
-            setTimeout(() => { is_animating = false; }, PANEL_SLIDE_IN_MS);
+            setTimeout(() => {
+                if (_on_panel_open) _on_panel_open();
+                is_animating = false;
+            }, PANEL_SLIDE_IN_MS);
         }
     }
 }
