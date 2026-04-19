@@ -11,6 +11,7 @@ import { build_settings_panel } from "./components.js";
 
 const EXPANSION_STATE_KEY = "d2l-todolist-expanded";
 const PANEL_WIDTH_KEY = "d2l-todolist-width";
+const TOGGLE_BTN_ID = "spark-toggle-btn";
 const DEFAULT_PANEL_WIDTH = 350;
 const MIN_PANEL_WIDTH = 250;
 const PANEL_SLIDE_IN_MS = 400;
@@ -22,6 +23,7 @@ const SETTINGS_TRANSITION_MS = 250;
 
 export let panel_width = DEFAULT_PANEL_WIDTH;
 let container;
+let toggle_btn = null;
 let is_animating = false;
 let settings_was_open = false;
 // Callback invoked when the tab becomes visible with the panel open.
@@ -34,6 +36,7 @@ let _on_panel_restore = null;
 // Updates the document body's right margin to match the current panel width.
 function update_body_margin() {
     document.body.style.marginRight = panel_width + "px";
+    if (toggle_btn) toggle_btn.style.right = panel_width + "px";
 }
 
 // Creates the panel DOM structure and wires up resize dragging.
@@ -98,6 +101,26 @@ function create_embedded_calendar_ui() {
     return { container: new_container, calendar_container, panel };
 }
 
+// Creates and returns the toggle button DOM element that sits at the panel edge.
+function create_toggle_button() {
+    const existing = document.getElementById(TOGGLE_BTN_ID);
+    if (existing) existing.remove();
+
+    const btn = document.createElement("button");
+    btn.id = TOGGLE_BTN_ID;
+    btn.setAttribute("title", "Toggle Spark panel");
+
+    const logo_url = chrome.runtime.getURL("icons/spark_logo.png");
+    const img = document.createElement("img");
+    img.src = logo_url;
+    img.alt = "Spark";
+    img.className = "spark-toggle-logo";
+    btn.appendChild(img);
+
+    btn.addEventListener("click", toggle_panel);
+    return btn;
+}
+
 // ============================================================
 // Exports
 // ============================================================
@@ -147,6 +170,7 @@ export function toggle_panel() {
             container.classList.add("hidden");
             sessionStorage.setItem(EXPANSION_STATE_KEY, "false");
             document.body.style.marginRight = "0";
+            if (toggle_btn) toggle_btn.style.right = "0px";
             const animation_handler = () => {
                 container.style.display = "none";
                 container.removeEventListener("animationend", animation_handler);
@@ -221,19 +245,24 @@ export function inject_embedded_ui() {
     const { container: new_container, calendar_container } = create_embedded_calendar_ui();
     container = new_container;
 
+    toggle_btn = create_toggle_button();
+
     const should_show_panel = sessionStorage.getItem(EXPANSION_STATE_KEY);
 
     console.log("Should show panel?: ", should_show_panel);
 
     if (should_show_panel) {
+        toggle_btn.style.right = panel_width + "px";
         update_body_margin();
     } else {
         container.style.display = "none";
         container.classList.add("hidden");
         document.body.style.marginRight = "0";
+        toggle_btn.style.right = "0px";
     }
 
     document.body.appendChild(container);
+    document.body.appendChild(toggle_btn);
 
     // Handle tab visibility changes.
     document.addEventListener("visibilitychange", () => {
