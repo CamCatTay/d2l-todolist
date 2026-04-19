@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Spark - for Brightspace",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "A productivity extension for Brightspace.",
   "icons": {
     "16": "/icons/spark_logo.png",
@@ -18,12 +18,16 @@
   ],
   "content_scripts": [
     {
-      "matches": ["https://*/d2l/*"],
+      "matches": [
+        "https://*/d2l/*"
+      ],
       "all_frames": false,
       "js": [
         "/dist/content.js"
       ],
-      "css": ["/styles/sidepanel.css"]
+      "css": [
+        "/styles/sidepanel.css"
+      ]
     }
   ],
   "action": {
@@ -32,8 +36,12 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["icons/*"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "icons/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }
