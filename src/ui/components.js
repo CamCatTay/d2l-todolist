@@ -7,20 +7,9 @@ import { formatTimeFromDate, formatFullDatetime, getDateOnly, formatDateHeader, 
 import { getCourseColor, ensureCourseColorsAssigned } from "../utils/color-utils.js";
 import { safe_send_message, panel_width } from "./panel.js";
 
-// Callbacks registered by content.js so settings UI can trigger refresh/re-render
-let _on_refresh = null;
-let _on_rerender = null;
-
-// Registers the refresh and re-render callbacks provided by content.js
-export function register_ui_callbacks({ on_refresh, on_rerender }) {
-    _on_refresh = on_refresh;
-    _on_rerender = on_rerender;
-}
-
-// Updates the last-fetched timestamp used by the frequency chart footer
-export function set_last_fetched_time(t) {
-    lastFetchedTime = t;
-}
+// ============================================================
+// Constants
+// ============================================================
 
 // Words that mark the start of administrative suffixes in course names.
 // Everything from the first matching word onward will be stripped.
@@ -34,24 +23,9 @@ const COURSE_NAME_TRIM_WORDS = [
     "Summer",
 ];
 
-// How many days before today the calendar should start.
-// Set to 0 to start from today; increase to show past items.
-const CALENDAR_START_DAYS_BACK_STORAGE_KEY = "d2l-todolist-calendar-start-days-back";
-let CALENDAR_START_DAYS_BACK = parseInt(localStorage.getItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY) ?? "7", 10);
-if (!Number.isFinite(CALENDAR_START_DAYS_BACK) || CALENDAR_START_DAYS_BACK < 0) CALENDAR_START_DAYS_BACK = 7;
-
-const HIDDEN_COURSES_KEY = "d2l-todolist-hidden-courses";
-let hiddenCourseIds = new Set(JSON.parse(localStorage.getItem(HIDDEN_COURSES_KEY) || "[]"));
-
-const HIDDEN_TYPES_KEY = "d2l-todolist-hidden-types";
-let hiddenTypes = new Set(JSON.parse(localStorage.getItem(HIDDEN_TYPES_KEY) || "[]"));
-const ITEM_TYPES = [
-    { key: "assignments", label: "Assignments" },
-    { key: "quizzes", label: "Quizzes" },
-    { key: "discussions", label: "Discussions" },
-];
-
-let _lastCourseData = {};
+const DAYS_IN_WEEK = 7;
+const CALENDAR_DAYS_BACK_DEFAULT = 7;
+const SETTINGS_MAX_DAYS_BACK = 365;
 
 // Toggle to show/hide the "Last fetched" timestamp in the frequency chart.
 const SHOW_LAST_FETCHED = true;
@@ -65,9 +39,38 @@ const DUE_TOMORROW_COLOR = "#e7c21d";
 // Color applied to due times when the item is incomplete and past due.
 const OVERDUE_COLOR = "#e84040";
 
-let lastFetchedTime = null;
+// Short month names used for display in the frequency chart week label and date matching.
+const MONTH_NAMES_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-function truncateCourseName(name) {
+// Short day abbreviations used as column labels in the frequency chart.
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+// How the key is displayed visually
+const ITEM_TYPES = [
+    { key: "assignments", label: "Assignments" },
+    { key: "quizzes", label: "Quizzes" },
+    { key: "discussions", label: "Discussions" },
+];
+
+// Local Storage Keys
+const CALENDAR_START_DAYS_BACK_STORAGE_KEY = "d2l-todolist-calendar-start-days-back";
+const HIDDEN_COURSES_STORAGE_KEY = "d2l-todolist-hidden-courses";
+const HIDDEN_TYPES_STORAGE_KEY = "d2l-todolist-hidden-types";
+
+// ============================================================
+// Module State
+// ============================================================
+
+// Callbacks registered by content.js so settings UI can trigger refresh/re-render
+let _on_refresh = null;
+let _on_rerender = null;
+
+// ============================================================
+// Internal Helpers
+// ============================================================
+
+// Returns raw course name without section and other course details
+function truncate_course_name(name) {
     if (!name) return name;
     const pattern = COURSE_NAME_TRIM_WORDS
         .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
@@ -75,90 +78,121 @@ function truncateCourseName(name) {
     return name.replace(new RegExp(`\\s*(${pattern})\\b.*$`, "i"), "").trim();
 }
 
-function createScrollbarIndicator(calendarContainer) {
-    const existingIndicator = calendarContainer.parentElement.querySelector(".scrollbar-indicator");
-    if (existingIndicator) existingIndicator.remove();
+// ============================================================
+// GUI
+// ============================================================
+
+// ============================================================
+// Frequency Chart
+// ============================================================
+
+// ============================================================
+// Settings
+// ============================================================
+
+let _lastCourseData = {};
+let last_fetched_time = null;
+let hidden_course_ids = new Set(JSON.parse(localStorage.getItem(HIDDEN_COURSES_STORAGE_KEY) || "[]"));
+let hidden_types = new Set(JSON.parse(localStorage.getItem(HIDDEN_TYPES_STORAGE_KEY) || "[]"));
+
+let CALENDAR_START_DAYS_BACK = parseInt(localStorage.getItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY) ?? "7", 10);
+if (!Number.isFinite(CALENDAR_START_DAYS_BACK) || CALENDAR_START_DAYS_BACK < 0) CALENDAR_START_DAYS_BACK = 7;
+
+// Registers the refresh and re-render callbacks provided by content.js
+export function register_ui_callbacks({ on_refresh, on_rerender }) {
+    _on_refresh = on_refresh;
+    _on_rerender = on_rerender;
+}
+
+// Updates the last-fetched timestamp used by the frequency chart footer
+export function set_last_fetched_time(t) {
+    last_fetched_time = t;
+}
+
+function create_scrollbar_indicator(calendar_container) {
+    const existing_indicator = calendar_container.parentElement.querySelector(".scrollbar-indicator");
+    if (existing_indicator) existing_indicator.remove();
 
     const indicator = document.createElement("div");
     indicator.className = "scrollbar-indicator";
 
-    const assignments = calendarContainer.querySelectorAll(".calendar-item");
+    const assignments = calendar_container.querySelectorAll(".calendar-item");
     if (assignments.length === 0) return;
 
-    const containerHeight = calendarContainer.clientHeight;
-    const scrollHeight = calendarContainer.scrollHeight;
-    if (scrollHeight <= containerHeight) return;
+    const container_height = calendar_container.clientHeight;
+    const scroll_height = calendar_container.scrollHeight;
+    if (scroll_height <= container_height) return;
 
-    assignments.forEach((assignmentEl) => {
-        const courseEl = assignmentEl.querySelector(".item-course");
-        const courseName = courseEl?.dataset.fullName || courseEl?.textContent || "";
-        const courseColor = getCourseColor(courseName);
-        const positionInContainer = assignmentEl.offsetTop;
-        const percentPosition = (positionInContainer / scrollHeight) * 100;
+    assignments.forEach((assignment_el) => {
+        const course_el = assignment_el.querySelector(".item-course");
+        const course_name = course_el?.dataset.fullName || course_el?.textContent || "";
+        const course_color = getCourseColor(course_name);
+        const position_in_container = assignment_el.offsetTop;
+        const percent_position = (position_in_container / scroll_height) * 100;
 
         const notch = document.createElement("div");
         notch.className = "scrollbar-notch";
-        notch.style.top = percentPosition + "%";
-        notch.style.backgroundColor = courseColor;
-        notch.title = courseName;
+        notch.style.top = percent_position + "%";
+        notch.style.backgroundColor = course_color;
+        notch.title = course_name;
 
         indicator.appendChild(notch);
     });
 
-    calendarContainer.parentElement.appendChild(indicator);
+    calendar_container.parentElement.appendChild(indicator);
 
-    calendarContainer.addEventListener("scroll", () => {
-        updateScrollbarIndicator(calendarContainer);
+    calendar_container.addEventListener("scroll", () => {
+        updateScrollbarIndicator(calendar_container);
     });
 }
 
-function updateScrollbarIndicator(calendarContainer) {
-    const indicator = calendarContainer.parentElement.querySelector(".scrollbar-indicator");
+function update_scrollbar_indicator(calendar_container) {
+    const indicator = calendar_container.parentElement.querySelector(".scrollbar-indicator");
     if (!indicator) return;
 
-    const scrollHeight = calendarContainer.scrollHeight;
-    const assignments = calendarContainer.querySelectorAll(".calendar-item");
+    const scroll_height = calendar_container.scrollHeight;
+    const assignments = calendar_container.querySelectorAll(".calendar-item");
     const notches = indicator.querySelectorAll(".scrollbar-notch");
 
     notches.forEach((notch, index) => {
         if (index < assignments.length) {
-            const positionInContainer = assignments[index].offsetTop;
-            const percentPosition = (positionInContainer / scrollHeight) * 100;
-            notch.style.top = percentPosition + "%";
+            const position_in_container = assignments[index].offsetTop;
+            const percent_position = (position_in_container / scroll_height) * 100;
+            notch.style.top = percent_position + "%";
         }
     });
 }
 
-function createAssignmentElement(assignment, course) {
-    const assignmentContainer = document.createElement("a");
-    assignmentContainer.className = "calendar-item";
+function create_assignment_element(item, course) {
+    const assignment_container = document.createElement("a");
+    assignment_container.className = "calendar-item";
 
     const now = new Date();
-    const nowDateOnly = getDateOnly(now);
-    const startDateOnly = assignment.startDate ? getDateOnly(assignment.startDate) : null;
-    const isNotYetAvailable = startDateOnly && startDateOnly > nowDateOnly;
+    const now_date_only = getDateOnly(now);
+    const start_date_only = item.start_date ? getDateOnly(item.start_date) : null;
+    const is_not_yet_available = start_date_only && start_date_only > now_date_only;
 
-    if (isNotYetAvailable) {
-        assignmentContainer.classList.add("not-yet-available");
+    if (is_not_yet_available) {
+        assignment_container.classList.add("not-yet-available");
     }
 
     const itemName = document.createElement("div");
     itemName.className = "item-name";
-    itemName.textContent = assignment.name;
+    itemName.textContent = item.name;
 
-    const itemMeta = document.createElement("div");
-    itemMeta.className = "item-meta";
+    const item_meta = document.createElement("div");
+    item_meta.className = "item-meta";
 
-    if (assignment.startDate) {
+    if (item.start_date) {
         const startDateContainer = document.createElement("div");
         startDateContainer.className = "start-date-container";
 
         const startDateValue = document.createElement("span");
         startDateValue.className = "start-date-value";
-        startDateValue.textContent = "Available on " + formatFullDatetime(assignment.startDate);
+        startDateValue.textContent = "Available on " + formatFullDatetime(item.start_date);
         startDateContainer.appendChild(startDateValue);
 
-        itemMeta.appendChild(startDateContainer);
+        item_meta.appendChild(startDateContainer);
     }
 
     const dueContainer = document.createElement("div");
@@ -166,15 +200,15 @@ function createAssignmentElement(assignment, course) {
 
     const dueTime = document.createElement("span");
     dueTime.className = "item-time";
-    dueTime.textContent = formatTimeFromDate(assignment.dueDate);
-    const dueDateOnly = getDateOnly(assignment.dueDate);
-    const tomorrowDateOnly = new Date(nowDateOnly);
+    dueTime.textContent = formatTimeFromDate(item.due_date);
+    const dueDateOnly = getDateOnly(item.due_date);
+    const tomorrowDateOnly = new Date(now_date_only);
     tomorrowDateOnly.setDate(tomorrowDateOnly.getDate() + 1);
     // Incomplete and past due
-    if (!assignment.completed && dueDateOnly < nowDateOnly) {
+    if (!item.completed && dueDateOnly < now_date_only) {
         dueTime.style.color = OVERDUE_COLOR;
     // Due today
-    } else if (dueDateOnly && dueDateOnly.getTime() === nowDateOnly.getTime()) {
+    } else if (dueDateOnly && dueDateOnly.getTime() === now_date_only.getTime()) {
         dueTime.style.color = DUE_TODAY_COLOR;
     // Due tomorrow
     } else if (dueDateOnly && dueDateOnly.getTime() === tomorrowDateOnly.getTime()) {
@@ -196,29 +230,29 @@ function createAssignmentElement(assignment, course) {
     courseDot.textContent = "●";
     courseDot.style.color = getCourseColor(course.name);
     itemCourse.appendChild(courseDot);
-    itemCourse.appendChild(document.createTextNode(truncateCourseName(course.name)));
+    itemCourse.appendChild(document.createTextNode(truncate_course_name(course.name)));
 
     dueContainer.appendChild(itemCourse);
 
-    itemMeta.appendChild(dueContainer);
+    item_meta.appendChild(dueContainer);
 
     const itemContent = document.createElement("div");
     itemContent.className = "item-content";
     itemContent.appendChild(itemName);
-    itemContent.appendChild(itemMeta);
-    assignmentContainer.appendChild(itemContent);
+    itemContent.appendChild(item_meta);
+    assignment_container.appendChild(itemContent);
 
-    assignmentContainer.addEventListener("click", function(e) {
+    assignment_container.addEventListener("click", function(e) {
         e.preventDefault();
-        window.open(assignment.url, '_blank');
+        window.open(item.url, '_blank');
     });
 
     const badge = document.createElement("div");
-    badge.className = assignment.completed ? "item-completed-badge" : "item-incomplete-dot";
-    badge.textContent = assignment.completed ? "✓" : "•";
-    assignmentContainer.appendChild(badge);
+    badge.className = item.completed ? "item-completed-badge" : "item-incomplete-dot";
+    badge.textContent = item.completed ? "✓" : "•";
+    assignment_container.appendChild(badge);
 
-    return assignmentContainer;
+    return assignment_container;
 }
 
 export function initialize_gui() {
@@ -263,7 +297,7 @@ export function update_gui(courseData, isFromCache = false) {
     Object.keys(courseData).forEach((courseId) => {
         const course = courseData[courseId];
 
-        if (hiddenCourseIds.has(courseId)) return;
+        if (hidden_course_ids.has(courseId)) return;
 
         const itemCollections = [
             { items: course.assignments, type: "assignments", showCompleted: true },
@@ -272,12 +306,12 @@ export function update_gui(courseData, isFromCache = false) {
         ];
 
         itemCollections.forEach(({ items, type, showCompleted }) => {
-            if (hiddenTypes.has(type)) return;
+            if (hidden_types.has(type)) return;
             if (items) {
                 Object.keys(items).forEach((itemId) => {
                     const item = items[itemId];
-                    if (item.dueDate && (!item.completed || showCompleted)) {
-                        const dateOnly = getDateOnly(item.dueDate);
+                    if (item.due_date && (!item.completed || showCompleted)) {
+                        const dateOnly = getDateOnly(item.due_date);
                         if (dateOnly) {
                             const dateKey = dateOnly.toISOString().split('T')[0];
                             if (!itemsByDate[dateKey]) {
@@ -345,7 +379,7 @@ export function update_gui(courseData, isFromCache = false) {
             itemsContainer.appendChild(emptyNotice);
         } else {
             items.forEach(({ item, course }) => {
-                const element = createAssignmentElement(item, course);
+                const element = create_assignment_element(item, course);
                 itemsContainer.appendChild(element);
             });
         }
@@ -354,7 +388,7 @@ export function update_gui(courseData, isFromCache = false) {
         currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    createScrollbarIndicator(calendarContainer);
+    create_scrollbar_indicator(calendarContainer);
 }
 
 function createFrequencyChart(calendarContainer, itemsByDate, initialWeekOffset = 0) {
@@ -458,8 +492,8 @@ function createFrequencyChart(calendarContainer, itemsByDate, initialWeekOffset 
     if (SHOW_LAST_FETCHED) {
         const lastFetchedEl = document.createElement("div");
         lastFetchedEl.className = "frequency-chart-last-fetched";
-        lastFetchedEl.textContent = lastFetchedTime
-            ? "Last fetched: " + lastFetchedTime.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })
+        lastFetchedEl.textContent = last_fetched_time
+            ? "Last fetched: " + last_fetched_time.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })
             : "Last fetched: —";
         chartContainer.appendChild(lastFetchedEl);
     }
@@ -674,8 +708,8 @@ function updateFrequencyNavButtons(chartContainer) {
 function getAllSettings() {
     return {
         daysBack: CALENDAR_START_DAYS_BACK,
-        hiddenCourses: [...hiddenCourseIds],
-        hiddenTypesArr: [...hiddenTypes],
+        hiddenCourses: [...hidden_course_ids],
+        hiddenTypesArr: [...hidden_types],
     };
 }
 
@@ -683,13 +717,13 @@ function getAllSettings() {
 // in-memory state, localStorage, and any currently-open settings panel UI.
 export function apply_settings({ daysBack, hiddenCourses, hiddenTypesArr }) {
     CALENDAR_START_DAYS_BACK = daysBack;
-    hiddenCourseIds = new Set(hiddenCourses);
-    hiddenTypes = new Set(hiddenTypesArr);
+    hidden_course_ids = new Set(hiddenCourses);
+    hidden_types = new Set(hiddenTypesArr);
 
     // Keep localStorage in sync so the initial module-level reads stay warm.
     localStorage.setItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY, daysBack.toString());
-    localStorage.setItem(HIDDEN_COURSES_KEY, JSON.stringify(hiddenCourses));
-    localStorage.setItem(HIDDEN_TYPES_KEY, JSON.stringify(hiddenTypesArr));
+    localStorage.setItem(HIDDEN_COURSES_STORAGE_KEY, JSON.stringify(hiddenCourses));
+    localStorage.setItem(HIDDEN_TYPES_STORAGE_KEY, JSON.stringify(hiddenTypesArr));
 
     // Sync the settings panel UI if it is currently rendered.
     const daysInput = document.getElementById("spark-setting-days-back");
@@ -697,7 +731,7 @@ export function apply_settings({ daysBack, hiddenCourses, hiddenTypesArr }) {
 
     ITEM_TYPES.forEach(({ key }) => {
         const cb = document.querySelector(`.settings-course-checkbox[data-setting-type="${key}"]`);
-        if (cb) cb.checked = !hiddenTypes.has(key);
+        if (cb) cb.checked = !hidden_types.has(key);
     });
 
     updateSettingsCourseList(_lastCourseData);
@@ -779,14 +813,14 @@ export function build_settings_panel() {
         checkbox.type = "checkbox";
         checkbox.className = "settings-course-checkbox";
         checkbox.dataset.settingType = key;
-        checkbox.checked = !hiddenTypes.has(key);
+        checkbox.checked = !hidden_types.has(key);
         checkbox.addEventListener("change", () => {
             if (checkbox.checked) {
-                hiddenTypes.delete(key);
+                hidden_types.delete(key);
             } else {
-                hiddenTypes.add(key);
+                hidden_types.add(key);
             }
-            localStorage.setItem(HIDDEN_TYPES_KEY, JSON.stringify([...hiddenTypes]));
+            localStorage.setItem(HIDDEN_TYPES_STORAGE_KEY, JSON.stringify([...hidden_types]));
             safe_send_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: getAllSettings() });
             if (_on_rerender) _on_rerender();
         });
@@ -846,9 +880,9 @@ function updateSettingsCourseList(courseData, listEl = null) {
 
     Object.keys(courseData).forEach((courseId) => {
         const course = courseData[courseId];
-        const displayName = truncateCourseName(course.name) || course.name;
+        const displayName = truncate_course_name(course.name) || course.name;
         const color = getCourseColor(course.name);
-        const isHidden = hiddenCourseIds.has(courseId);
+        const isHidden = hidden_course_ids.has(courseId);
 
         const row = document.createElement("label");
         row.className = "settings-course-row";
@@ -859,11 +893,11 @@ function updateSettingsCourseList(courseData, listEl = null) {
         checkbox.checked = !isHidden;
         checkbox.addEventListener("change", () => {
             if (checkbox.checked) {
-                hiddenCourseIds.delete(courseId);
+                hidden_course_ids.delete(courseId);
             } else {
-                hiddenCourseIds.add(courseId);
+                hidden_course_ids.add(courseId);
             }
-            localStorage.setItem(HIDDEN_COURSES_KEY, JSON.stringify([...hiddenCourseIds]));
+            localStorage.setItem(HIDDEN_COURSES_STORAGE_KEY, JSON.stringify([...hidden_course_ids]));
             safe_send_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: getAllSettings() });
             if (_on_rerender) _on_rerender();
         });

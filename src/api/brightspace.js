@@ -66,8 +66,8 @@ class Item {
         this.id = id;
         this.name = name;
         this.url = url;
-        this.dueDate = due_date;
-        this.startDate = start_date;
+        this.due_date = due_date;
+        this.start_date = start_date;
         this.completed = completed;
     }
 }
@@ -388,7 +388,7 @@ export async function get_course_content(tabUrl) {
                 ItemName: quiz.Name,
                 ItemType: ActivityType.QUIZ,
                 ItemUrl: base_url + `/d2l/lms/quizzing/user/quiz_summary.d2l?ou=${course.OrgUnit.Id}&qi=${quiz.QuizId}&cfql=0`,
-                StartDate: clear_past_start_date(quiz.StartDate),
+                StartDate: clear_past_start_date(quiz.start_date),
                 DueDate: quiz.DueDate || quiz.EndDate, // Use EndDate if DueDate is null
                 ActivityType: ActivityType.QUIZ,
                 DateCompleted: attempt_count > 0 ? new Date().toISOString() : null
@@ -414,7 +414,7 @@ export async function get_course_content(tabUrl) {
                 ItemName: assignment.Name,
                 ItemType: ActivityType.DROPBOX,
                 ItemUrl: base_url + `/d2l/lms/dropbox/user/folder_submit_files.d2l?db=${assignment.Id}&grpid=0&isprv=0&bp=0&ou=${course.OrgUnit.Id}`,
-                StartDate: clear_past_start_date(assignment.Availability?.StartDate),
+                StartDate: clear_past_start_date(assignment.Availability?.start_date),
                 DueDate: assignment.DueDate || assignment.Availability?.EndDate,
                 ActivityType: ActivityType.DROPBOX,
                 DateCompleted: has_submission ? new Date().toISOString() : null
@@ -444,8 +444,8 @@ export async function get_course_content(tabUrl) {
                     ItemName: topic.Name,
                     ItemType: ActivityType.DISCUSSION,
                     ItemUrl: base_url + `/d2l/le/${course.OrgUnit.Id}/discussions/topics/${topic.TopicId}/View`,
-                    StartDate: clear_past_start_date(topic.StartDate),
-                    DueDate: topic.EndDate || topic.StartDate,
+                    StartDate: clear_past_start_date(topic.start_date),
+                    DueDate: topic.EndDate || topic.start_date,
                     ActivityType: ActivityType.DISCUSSION,
                     DateCompleted: has_posted ? new Date().toISOString() : null
                 };

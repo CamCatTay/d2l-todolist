@@ -340,7 +340,7 @@ describe('build_course_data', () => {
         const items = [make_item({ DueDate: null, EndDate: '2026-03-05T00:00:00Z' })];
         const result = await brightspace.build_course_data(MOCK_COURSES, items);
 
-        expect(result[101].quizzes[1].dueDate).toBe('2026-03-05T00:00:00Z');
+        expect(result[101].quizzes[1].due_date).toBe('2026-03-05T00:00:00Z');
     });
 
     test('silently ignores items whose OrgUnitId does not match any course', async () => {
