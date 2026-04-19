@@ -65,6 +65,14 @@ const HIDDEN_TYPES_STORAGE_KEY = "d2l-todolist-hidden-types";
 let _on_refresh = null;
 let _on_rerender = null;
 
+let _last_course_data = {};
+let last_fetched_time = null;
+let hidden_course_ids = new Set(JSON.parse(localStorage.getItem(HIDDEN_COURSES_STORAGE_KEY) || "[]"));
+let hidden_types = new Set(JSON.parse(localStorage.getItem(HIDDEN_TYPES_STORAGE_KEY) || "[]"));
+
+let CALENDAR_START_DAYS_BACK = parseInt(localStorage.getItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY) ?? "7", 10);
+if (!Number.isFinite(CALENDAR_START_DAYS_BACK) || CALENDAR_START_DAYS_BACK < 0) CALENDAR_START_DAYS_BACK = 7;
+
 // ============================================================
 // Internal Helpers
 // ============================================================
@@ -82,33 +90,8 @@ function truncate_course_name(name) {
 // GUI
 // ============================================================
 
-// ============================================================
-// Frequency Chart
-// ============================================================
-
-// ============================================================
-// Settings
-// ============================================================
-
-let _last_course_data = {};
-let last_fetched_time = null;
-let hidden_course_ids = new Set(JSON.parse(localStorage.getItem(HIDDEN_COURSES_STORAGE_KEY) || "[]"));
-let hidden_types = new Set(JSON.parse(localStorage.getItem(HIDDEN_TYPES_STORAGE_KEY) || "[]"));
-
-let CALENDAR_START_DAYS_BACK = parseInt(localStorage.getItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY) ?? "7", 10);
-if (!Number.isFinite(CALENDAR_START_DAYS_BACK) || CALENDAR_START_DAYS_BACK < 0) CALENDAR_START_DAYS_BACK = 7;
-
-// Registers the refresh and re-render callbacks provided by content.js
-export function register_ui_callbacks({ on_refresh, on_rerender }) {
-    _on_refresh = on_refresh;
-    _on_rerender = on_rerender;
-}
-
-// Updates the last-fetched timestamp used by the frequency chart footer
-export function set_last_fetched_time(t) {
-    last_fetched_time = t;
-}
-
+// Builds and appends a color-coded scrollbar indicator into calendar_container's parent,
+// with one notch per calendar item. Registers a scroll listener to keep positions in sync.
 function create_scrollbar_indicator(calendar_container) {
     const existing_indicator = calendar_container.parentElement.querySelector(".scrollbar-indicator");
     if (existing_indicator) existing_indicator.remove();
@@ -142,10 +125,11 @@ function create_scrollbar_indicator(calendar_container) {
     calendar_container.parentElement.appendChild(indicator);
 
     calendar_container.addEventListener("scroll", () => {
-        updateScrollbarIndicator(calendar_container);
+        update_scrollbar_indicator(calendar_container);
     });
 }
 
+// Recalculates and updates the top position of each notch after calendar content has been re-rendered.
 function update_scrollbar_indicator(calendar_container) {
     const indicator = calendar_container.parentElement.querySelector(".scrollbar-indicator");
     if (!indicator) return;
@@ -258,6 +242,7 @@ function create_assignment_element(item, course) {
     return assignment_container;
 }
 
+// Renders the GUI in an empty initial state, which shows the stale/loading indicator.
 export function initialize_gui() {
     update_gui({}, true);
 }
@@ -399,6 +384,15 @@ export function update_gui(course_data, is_from_cache = false) {
     }
 
     create_scrollbar_indicator(calendar_container);
+}
+
+// ============================================================
+// Frequency Chart
+// ============================================================
+
+// Updates the last-fetched timestamp used by the frequency chart footer
+export function set_last_fetched_time(t) {
+    last_fetched_time = t;
 }
 
 // Builds the frequency chart widget and inserts it at the top of calendar_container.
@@ -714,6 +708,16 @@ function update_frequency_nav_buttons(chart_container) {
     } catch (e) {
         console.error("Error updating frequency nav buttons:", e);
     }
+}
+
+// ============================================================
+// Settings
+// ============================================================
+
+// Registers the refresh and re-render callbacks provided by content.js
+export function register_ui_callbacks({ on_refresh, on_rerender }) {
+    _on_refresh = on_refresh;
+    _on_rerender = on_rerender;
 }
 
 // Returns a plain object snapshot of all user-configurable settings.
