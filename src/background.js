@@ -3,6 +3,7 @@
 // and responds to messages from the content script.
 
 import { get_course_content } from "/src/api/brightspace.js";
+import { Action } from "./shared/actions";
 
 // ============================================================
 // Constants
@@ -36,28 +37,28 @@ function broadcast_to_d2l_tabs(sender_tab_id, message) {
 
 // Listens for messages from content scripts and dispatches to the appropriate handler
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-    if (request.action === "fetchCourses") {
+    if (request.action === Action.FETCH_COURSES) {
         get_course_content(sender.tab.url).then(function(data) {
             sendResponse(data);
         });
         return true;
     }
 
-    if (request.action === "openFaq") {
+    if (request.action === Action.OPEN_FAQ) {
         chrome.tabs.create({ url: FAQ_URL });
         return;
     }
 
     // A tab opened its panel — record it and tell every other D2L tab to close.
-    if (request.action === "panelOpened") {
+    if (request.action === Action.PANEL_OPENED) {
         const active_tab_id = sender.tab.id;
         chrome.storage.local.set({ [ACTIVE_TAB_KEY]: active_tab_id });
-        broadcast_to_d2l_tabs(active_tab_id, { action: "closePanel" });
+        broadcast_to_d2l_tabs(active_tab_id, { action: Action.CLOSE_PANEL });
         return;
     }
 
     // A tab explicitly closed its panel — clear the active record.
-    if (request.action === "panelClosed") {
+    if (request.action === Action.PANEL_CLOSED) {
         chrome.storage.local.get([ACTIVE_TAB_KEY], function(result) {
             if (result[ACTIVE_TAB_KEY] === sender.tab.id) {
                 chrome.storage.local.remove(ACTIVE_TAB_KEY);
@@ -66,12 +67,12 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
         return;
     }
 
-    if (request.action === "saveScrollPosition") {
+    if (request.action === Action.SAVE_SCROLL_POSITION) {
         chrome.storage.local.set({ [SCROLL_POS_KEY]: request.position });
         return;
     }
 
-    if (request.action === "getScrollPosition") {
+    if (request.action === Action.GET_SCROLL_POSITION) {
         chrome.storage.local.get([SCROLL_POS_KEY], function(result) {
             sendResponse({ position: result[SCROLL_POS_KEY] || 0 });
         });
@@ -79,35 +80,35 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     }
 
     // A tab started fetching — let other D2L tabs know so they can show the loading indicator.
-    if (request.action === "broadcastFetchStarted") {
-        broadcast_to_d2l_tabs(sender.tab.id, { action: "fetchStarted" });
+    if (request.action === Action.BROADCAST_FETCH_STARTED) {
+        broadcast_to_d2l_tabs(sender.tab.id, { action: Action.FETCH_STARTED });
         return;
     }
 
     // A tab finished fetching — broadcast to all other D2L tabs to sync.
-    if (request.action === "broadcastCourseDataUpdated") {
-        broadcast_to_d2l_tabs(sender.tab.id, { action: "courseDataUpdated" });
+    if (request.action === Action.BROADCAST_COURSE_DATA_UPDATED) {
+        broadcast_to_d2l_tabs(sender.tab.id, { action: Action.COURSE_DATA_UPDATED });
         return;
     }
 
     // Settings values changed on one tab — persist and relay to all other D2L tabs.
-    if (request.action === "broadcastSettingsChanged") {
+    if (request.action === Action.BROADCAST_SETTINGS_CHANGED) {
         chrome.storage.local.set({ [SETTINGS_VALUE_KEY]: request.settings });
-        broadcast_to_d2l_tabs(sender.tab.id, { action: "settingsChanged", settings: request.settings });
+        broadcast_to_d2l_tabs(sender.tab.id, { action: Action.SETTINGS_CHANGED, settings: request.settings });
         return;
     }
 
     // Settings panel opened on one tab — sync to all other D2L tabs.
-    if (request.action === "broadcastSettingsOpened") {
+    if (request.action === Action.BROADCAST_SETTINGS_OPENED) {
         chrome.storage.local.set({ [SETTINGS_OPEN_KEY]: true });
-        broadcast_to_d2l_tabs(sender.tab.id, { action: "settingsOpened" });
+        broadcast_to_d2l_tabs(sender.tab.id, { action: Action.SETTINGS_OPENED });
         return;
     }
 
     // Settings panel closed on one tab — sync to all other D2L tabs.
-    if (request.action === "broadcastSettingsClosed") {
+    if (request.action === Action.BROADCAST_SETTINGS_CLOSED) {
         chrome.storage.local.set({ [SETTINGS_OPEN_KEY]: false });
-        broadcast_to_d2l_tabs(sender.tab.id, { action: "settingsClosed" });
+        broadcast_to_d2l_tabs(sender.tab.id, { action: Action.SETTINGS_CLOSED });
         return;
     }
 });
@@ -119,7 +120,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 // Toggles the side panel when the extension icon is clicked on a D2L tab
 chrome.action.onClicked.addListener((tab) => {
     if (tab.url && tab.url.includes(D2L_URL_FILTER)) {
-        chrome.tabs.sendMessage(tab.id, { action: "togglePanel" });
+        chrome.tabs.sendMessage(tab.id, { action: Action.TOGGLE_PANEL });
     }
 });
 

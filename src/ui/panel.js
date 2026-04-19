@@ -2,6 +2,8 @@
 // Builds and controls the side panel DOM: tab switching, resize handling,
 // scroll persistence, and rendering course content into the panel.
 
+import { Action } from "../shared/actions";
+
 const EXPANSION_STATE_KEY = "d2l-todolist-expanded";
 const PANEL_WIDTH_KEY = "d2l-todolist-width";
 
@@ -51,7 +53,7 @@ function togglePanel() {
             container.classList.add("hidden");
             localStorage.setItem(EXPANSION_STATE_KEY, "false");
             wasClosedSilently = false;
-            safeSendMessage({ action: "panelClosed" });
+            safeSendMessage({ action: Action.PANEL_CLOSED });
             document.body.style.marginRight = "0";
             const animationHandler = () => {
                 container.style.display = "none";
@@ -73,7 +75,7 @@ function togglePanel() {
         container.classList.remove("hidden");
         localStorage.setItem(EXPANSION_STATE_KEY, "true");
         wasClosedSilently = false;
-        safeSendMessage({ action: "panelOpened" });
+        safeSendMessage({ action: Action.PANEL_OPENED });
         container.style.display = "flex";
         updateBodyMargin();
 
@@ -220,7 +222,7 @@ function injectEmbeddedUI() {
 
     // Claim the active panel slot if starting visible.
     if (shouldShowPanel) {
-        safeSendMessage({ action: "panelOpened" });
+        safeSendMessage({ action: Action.PANEL_OPENED });
     }
 
     // Handle tab visibility changes.
@@ -237,14 +239,14 @@ function injectEmbeddedUI() {
                 container.style.display = "flex";
                 container.classList.remove("hidden");
                 updateBodyMargin();
-                safeSendMessage({ action: "panelOpened" });
+                safeSendMessage({ action: Action.PANEL_OPENED });
                 if (_onPanelRestore) _onPanelRestore();
             }
         } else if (container && !container.classList.contains("hidden")) {
             // Panel was open when the user switched away — it was never closed.
             // Reclaim the active slot (closes any other tab's panel if visible)
             // and refresh data without any animation.
-            safeSendMessage({ action: "panelOpened" });
+            safeSendMessage({ action: Action.PANEL_OPENED });
             if (_onPanelRestore) _onPanelRestore();
         }
     });

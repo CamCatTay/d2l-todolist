@@ -2,6 +2,8 @@
 // Injected into Brightspace pages. Bootstraps the side panel, triggers data
 // fetches via the background worker, and manages panel lifecycle.
 
+import { Action } from "./shared/actions";
+
 const COURSE_DATA_KEY = "courseData";
 const LAST_FETCHED_KEY = "spark-last-fetched";
 const SETTINGS_OPEN_KEY = "spark-settings-open";
@@ -31,7 +33,7 @@ window.addEventListener("load", () => {
         clearTimeout(scrollSaveTimer);
         scrollSaveTimer = setTimeout(() => {
             safeSendMessage({
-                action: "saveScrollPosition",
+                action: Action.SAVE_SCROLL_POSITION,
                 position: calendarContainer.scrollTop
             });
         }, 300);
@@ -39,7 +41,7 @@ window.addEventListener("load", () => {
 
     // Restore the shared scroll position after the calendar DOM is rebuilt.
     function restoreScrollPosition() {
-        safeSendMessage({ action: "getScrollPosition" }, function(response) {
+        safeSendMessage({ action: Action.GET_SCROLL_POSITION }, function(response) {
             if (response && response.position > 0) {
                 requestAnimationFrame(() => {
                     calendarContainer.scrollTop = response.position;
@@ -107,8 +109,8 @@ window.addEventListener("load", () => {
         if (fetchInFlight) return;
         fetchInFlight = true;
         addDataStatusIndicator(true);
-        safeSendMessage({ action: "broadcastFetchStarted" });
-        safeSendMessage({ action: "fetchCourses" }, function(response) {
+        safeSendMessage({ action: Action.BROADCAST_FETCH_STARTED });
+        safeSendMessage({ action: Action.FETCH_COURSES }, function(response) {
             fetchInFlight = false;
             if (response) {
                 courseData = JSON.parse(JSON.stringify(response));
@@ -117,7 +119,7 @@ window.addEventListener("load", () => {
                 chrome.storage.local.set({ courseData: courseData, [LAST_FETCHED_KEY]: lastFetchedTime.toISOString() }, function() {
                     updateGUI(courseData, false);
                     restoreScrollPosition();
-                    safeSendMessage({ action: "broadcastCourseDataUpdated" });
+                    safeSendMessage({ action: Action.BROADCAST_COURSE_DATA_UPDATED });
                 });
             }
         });
@@ -135,12 +137,12 @@ window.addEventListener("load", () => {
 });
 
 chrome.runtime.onMessage.addListener(function(request) {
-    if (request.action === "fetchStarted") {
+    if (request.action === Action.FETCH_STARTED) {
         // Another tab started fetching — show the loading indicator while we wait for its data.
         globalFetchInFlight = true;
         addDataStatusIndicator(true);
     }
-    if (request.action === "courseDataUpdated") {
+    if (request.action === Action.COURSE_DATA_UPDATED) {
         // Another tab finished fetching — sync from storage and clear the global flag.
         globalFetchInFlight = false;
         chrome.storage.local.get([COURSE_DATA_KEY, LAST_FETCHED_KEY], function(result) {
@@ -155,10 +157,10 @@ chrome.runtime.onMessage.addListener(function(request) {
     if (request.action === "openUrl") {
         window.open(request.url, '_blank');
     }
-    if (request.action === "togglePanel") {
+    if (request.action === Action.TOGGLE_PANEL) {
         togglePanel();
     }
-    if (request.action === "closePanel") {
+    if (request.action === Action.CLOSE_PANEL) {
         // Only close if this tab is currently visible — that means another tab
         // is open side-by-side (e.g. separate window). If this tab is hidden
         // (normal tab switch), leave the panel alone so it's still there when
@@ -167,7 +169,7 @@ chrome.runtime.onMessage.addListener(function(request) {
             closePanelSilently();
         }
     }
-    if (request.action === "settingsOpened") {
+    if (request.action === Action.SETTINGS_OPENED) {
         // Don't open the settings panel on a tab whose main panel is currently hidden
         // (e.g. the inactive side of a split-screen setup).
         const widget = document.getElementById("d2l-todolist-widget");
@@ -180,11 +182,11 @@ chrome.runtime.onMessage.addListener(function(request) {
         settingsPanel.style.right = (typeof panelWidth !== "undefined" ? panelWidth : 350) + "px";
         settingsPanel.classList.add("open");
     }
-    if (request.action === "settingsClosed") {
+    if (request.action === Action.SETTINGS_CLOSED) {
         const settingsPanel = document.getElementById("spark-settings-panel");
         if (settingsPanel) settingsPanel.classList.remove("open");
     }
-    if (request.action === "settingsChanged") {
+    if (request.action === Action.SETTINGS_CHANGED) {
         applySettings(request.settings);
         triggerReRender();
     }

@@ -2,6 +2,8 @@
 // Reusable UI component factories: course cards, item rows, date headers,
 // settings panel, and course name formatting utilities.
 
+import { Action } from "../shared/actions";
+
 // Words that mark the start of administrative suffixes in course names.
 // Everything from the first matching word onward will be stripped.
 const COURSE_NAME_TRIM_WORDS = [
@@ -392,7 +394,7 @@ function createFrequencyChart(calendarContainer, itemsByDate, initialWeekOffset 
         settingsPanel.classList.toggle("open");
         settingsPanel.style.right = (typeof panelWidth !== "undefined" ? panelWidth : 350) + "px";
         const isOpen = settingsPanel.classList.contains("open");
-        safeSendMessage({ action: isOpen ? "broadcastSettingsOpened" : "broadcastSettingsClosed" });
+        safeSendMessage({ action: isOpen ? Action.BROADCAST_SETTINGS_OPENED : Action.BROADCAST_SETTINGS_CLOSED });
     });
     weekLabelRow.appendChild(settingsBtn);
 
@@ -421,7 +423,7 @@ function createFrequencyChart(calendarContainer, itemsByDate, initialWeekOffset 
     faqBtn.textContent = "?";
     faqBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        safeSendMessage({ action: "openFaq" });
+        safeSendMessage({ action: Action.OPEN_FAQ });
     });
     weekLabelRow.appendChild(faqBtn);
 
@@ -727,7 +729,7 @@ function buildSettingsPanel() {
         input.value = val.toString();
         CALENDAR_START_DAYS_BACK = val;
         localStorage.setItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY, val.toString());
-        if (typeof safeSendMessage === "function") safeSendMessage({ action: "broadcastSettingsChanged", settings: getAllSettings() });
+        if (typeof safeSendMessage === "function") safeSendMessage({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: getAllSettings() });
         if (typeof triggerReRender === "function") triggerReRender();
     });
 
@@ -767,7 +769,7 @@ function buildSettingsPanel() {
                 hiddenTypes.add(key);
             }
             localStorage.setItem(HIDDEN_TYPES_KEY, JSON.stringify([...hiddenTypes]));
-            if (typeof safeSendMessage === "function") safeSendMessage({ action: "broadcastSettingsChanged", settings: getAllSettings() });
+            if (typeof safeSendMessage === "function") safeSendMessage({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: getAllSettings() });
             if (typeof triggerReRender === "function") triggerReRender();
         });
 
@@ -844,7 +846,7 @@ function updateSettingsCourseList(courseData, listEl = null) {
                 hiddenCourseIds.add(courseId);
             }
             localStorage.setItem(HIDDEN_COURSES_KEY, JSON.stringify([...hiddenCourseIds]));
-            if (typeof safeSendMessage === "function") safeSendMessage({ action: "broadcastSettingsChanged", settings: getAllSettings() });
+            if (typeof safeSendMessage === "function") safeSendMessage({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: getAllSettings() });
             if (typeof triggerReRender === "function") triggerReRender();
         });
 

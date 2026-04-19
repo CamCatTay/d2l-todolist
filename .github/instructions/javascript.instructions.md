@@ -10,6 +10,11 @@ applyTo: "**"
 - Use `SCREAMING_SNAKE_CASE` (all-caps `SNAKE_CASE`) for constants.
 - Never use `camelCase` or `PascalCase` except for class names (e.g. `Course`, `Item`).
 
+## Quotes
+
+- Use double quotes `""` by default for all strings.
+- Use single quotes `''` only when the string itself contains a double quote, to avoid escaping.
+
 ## File Header
 
 Every file must begin with a short comment block describing what the script does:

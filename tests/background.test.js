@@ -30,6 +30,8 @@ const {
     FAQ_URL,
 } = require('../src/background.js');
 
+const { Action } = require("../src/shared/actions.js");
+
 // ============================================================
 // Mock Helpers
 // ============================================================
@@ -88,14 +90,14 @@ afterEach(() => {
 // fetchCourses
 // ============================================================
 
-describe('fetchCourses', () => {
+describe(Action.FETCH_COURSES, () => {
     test('calls get_course_content with the sender tab URL and sends the result back', async () => {
         const course_data  = { 101: { name: 'Math 101' } };
         const send_response = jest.fn();
         const sender        = { tab: { id: 1, url: 'https://example.com/d2l/home' } };
         mock_get_course_content.mockResolvedValue(course_data);
 
-        on_message({ action: 'fetchCourses' }, sender, send_response);
+        on_message({ action: Action.FETCH_COURSES }, sender, send_response);
         await Promise.resolve(); // flush resolved promise microtask
 
         expect(mock_get_course_content).toHaveBeenCalledWith(sender.tab.url);
@@ -104,7 +106,7 @@ describe('fetchCourses', () => {
 
     test('returns true to keep the message channel open for the async response', () => {
         mock_get_course_content.mockResolvedValue({});
-        const result = on_message({ action: 'fetchCourses' }, { tab: { id: 1, url: '' } }, jest.fn());
+        const result = on_message({ action: Action.FETCH_COURSES }, { tab: { id: 1, url: '' } }, jest.fn());
         expect(result).toBe(true);
     });
 });
@@ -113,9 +115,9 @@ describe('fetchCourses', () => {
 // openFaq
 // ============================================================
 
-describe('openFaq', () => {
+describe(Action.OPEN_FAQ, () => {
     test('opens a new tab pointing to the FAQ URL', () => {
-        on_message({ action: 'openFaq' }, { tab: { id: 1 } }, jest.fn());
+        on_message({ action: Action.OPEN_FAQ }, { tab: { id: 1 } }, jest.fn());
         expect(chrome.tabs.create).toHaveBeenCalledWith({ url: FAQ_URL });
     });
 });
@@ -124,11 +126,11 @@ describe('openFaq', () => {
 // panelOpened
 // ============================================================
 
-describe('panelOpened', () => {
+describe(Action.PANEL_OPENED, () => {
     test('stores the sender tab ID as the active tab', () => {
         chrome.tabs.query.mockImplementation((q, cb) => cb([]));
 
-        on_message({ action: 'panelOpened' }, { tab: { id: 5 } }, jest.fn());
+        on_message({ action: Action.PANEL_OPENED }, { tab: { id: 5 } }, jest.fn());
 
         expect(chrome.storage.local.set).toHaveBeenCalledWith({ [ACTIVE_TAB_KEY]: 5 });
     });
@@ -137,16 +139,16 @@ describe('panelOpened', () => {
         const other_d2l_tab = make_d2l_tab(2);
         chrome.tabs.query.mockImplementation((q, cb) => cb([other_d2l_tab]));
 
-        on_message({ action: 'panelOpened' }, { tab: { id: 5 } }, jest.fn());
+        on_message({ action: Action.PANEL_OPENED }, { tab: { id: 5 } }, jest.fn());
 
-        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { action: 'closePanel' });
+        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { action: Action.CLOSE_PANEL });
     });
 
     test('does not send closePanel back to the sender tab', () => {
         const sender_tab = make_d2l_tab(5);
         chrome.tabs.query.mockImplementation((q, cb) => cb([sender_tab]));
 
-        on_message({ action: 'panelOpened' }, { tab: { id: 5 } }, jest.fn());
+        on_message({ action: Action.PANEL_OPENED }, { tab: { id: 5 } }, jest.fn());
 
         expect(chrome.tabs.sendMessage).not.toHaveBeenCalled();
     });
@@ -155,7 +157,7 @@ describe('panelOpened', () => {
         const non_d2l = make_other_tab(9);
         chrome.tabs.query.mockImplementation((q, cb) => cb([non_d2l]));
 
-        on_message({ action: 'panelOpened' }, { tab: { id: 5 } }, jest.fn());
+        on_message({ action: Action.PANEL_OPENED }, { tab: { id: 5 } }, jest.fn());
 
         expect(chrome.tabs.sendMessage).not.toHaveBeenCalled();
     });
@@ -165,11 +167,11 @@ describe('panelOpened', () => {
 // panelClosed
 // ============================================================
 
-describe('panelClosed', () => {
+describe(Action.PANEL_CLOSED, () => {
     test('removes the active tab key when the sender is the recorded active tab', () => {
         chrome.storage.local.get.mockImplementation((keys, cb) => cb({ [ACTIVE_TAB_KEY]: 7 }));
 
-        on_message({ action: 'panelClosed' }, { tab: { id: 7 } }, jest.fn());
+        on_message({ action: Action.PANEL_CLOSED }, { tab: { id: 7 } }, jest.fn());
 
         expect(chrome.storage.local.remove).toHaveBeenCalledWith(ACTIVE_TAB_KEY);
     });
@@ -177,7 +179,7 @@ describe('panelClosed', () => {
     test('does not remove the key when the sender is a different tab', () => {
         chrome.storage.local.get.mockImplementation((keys, cb) => cb({ [ACTIVE_TAB_KEY]: 7 }));
 
-        on_message({ action: 'panelClosed' }, { tab: { id: 99 } }, jest.fn());
+        on_message({ action: Action.PANEL_CLOSED }, { tab: { id: 99 } }, jest.fn());
 
         expect(chrome.storage.local.remove).not.toHaveBeenCalled();
     });
@@ -187,9 +189,9 @@ describe('panelClosed', () => {
 // saveScrollPosition
 // ============================================================
 
-describe('saveScrollPosition', () => {
+describe(Action.SAVE_SCROLL_POSITION, () => {
     test('persists the position value to local storage', () => {
-        on_message({ action: 'saveScrollPosition', position: 350 }, { tab: { id: 1 } }, jest.fn());
+        on_message({ action: Action.SAVE_SCROLL_POSITION, position: 350 }, { tab: { id: 1 } }, jest.fn());
 
         expect(chrome.storage.local.set).toHaveBeenCalledWith({ [SCROLL_POS_KEY]: 350 });
     });
@@ -199,12 +201,12 @@ describe('saveScrollPosition', () => {
 // getScrollPosition
 // ============================================================
 
-describe('getScrollPosition', () => {
+describe(Action.GET_SCROLL_POSITION, () => {
     test('responds with the stored scroll position', () => {
         chrome.storage.local.get.mockImplementation((keys, cb) => cb({ [SCROLL_POS_KEY]: 200 }));
         const send_response = jest.fn();
 
-        on_message({ action: 'getScrollPosition' }, { tab: { id: 1 } }, send_response);
+        on_message({ action: Action.GET_SCROLL_POSITION }, { tab: { id: 1 } }, send_response);
 
         expect(send_response).toHaveBeenCalledWith({ position: 200 });
     });
@@ -213,14 +215,14 @@ describe('getScrollPosition', () => {
         chrome.storage.local.get.mockImplementation((keys, cb) => cb({}));
         const send_response = jest.fn();
 
-        on_message({ action: 'getScrollPosition' }, { tab: { id: 1 } }, send_response);
+        on_message({ action: Action.GET_SCROLL_POSITION }, { tab: { id: 1 } }, send_response);
 
         expect(send_response).toHaveBeenCalledWith({ position: 0 });
     });
 
     test('returns true to keep the message channel open for the async response', () => {
         chrome.storage.local.get.mockImplementation((keys, cb) => cb({}));
-        const result = on_message({ action: 'getScrollPosition' }, { tab: { id: 1 } }, jest.fn());
+        const result = on_message({ action: Action.GET_SCROLL_POSITION }, { tab: { id: 1 } }, jest.fn());
         expect(result).toBe(true);
     });
 });
@@ -229,14 +231,14 @@ describe('getScrollPosition', () => {
 // broadcastFetchStarted
 // ============================================================
 
-describe('broadcastFetchStarted', () => {
+describe(Action.BROADCAST_FETCH_STARTED, () => {
     test('sends fetchStarted to other D2L tabs', () => {
         const other_d2l_tab = make_d2l_tab(2);
         chrome.tabs.query.mockImplementation((q, cb) => cb([other_d2l_tab]));
 
-        on_message({ action: 'broadcastFetchStarted' }, { tab: { id: 1 } }, jest.fn());
+        on_message({ action: Action.BROADCAST_FETCH_STARTED }, { tab: { id: 1 } }, jest.fn());
 
-        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { action: 'fetchStarted' });
+        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { action: Action.FETCH_STARTED });
     });
 });
 
@@ -244,14 +246,14 @@ describe('broadcastFetchStarted', () => {
 // broadcastCourseDataUpdated
 // ============================================================
 
-describe('broadcastCourseDataUpdated', () => {
+describe(Action.BROADCAST_COURSE_DATA_UPDATED, () => {
     test('sends courseDataUpdated to other D2L tabs', () => {
         const other_d2l_tab = make_d2l_tab(2);
         chrome.tabs.query.mockImplementation((q, cb) => cb([other_d2l_tab]));
 
-        on_message({ action: 'broadcastCourseDataUpdated' }, { tab: { id: 1 } }, jest.fn());
+        on_message({ action: Action.BROADCAST_COURSE_DATA_UPDATED }, { tab: { id: 1 } }, jest.fn());
 
-        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { action: 'courseDataUpdated' });
+        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { action: Action.COURSE_DATA_UPDATED });
     });
 });
 
@@ -259,12 +261,12 @@ describe('broadcastCourseDataUpdated', () => {
 // broadcastSettingsChanged
 // ============================================================
 
-describe('broadcastSettingsChanged', () => {
+describe(Action.BROADCAST_SETTINGS_CHANGED, () => {
     test('persists the new settings object to local storage', () => {
         chrome.tabs.query.mockImplementation((q, cb) => cb([]));
         const settings = { theme: 'dark' };
 
-        on_message({ action: 'broadcastSettingsChanged', settings }, { tab: { id: 1 } }, jest.fn());
+        on_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings }, { tab: { id: 1 } }, jest.fn());
 
         expect(chrome.storage.local.set).toHaveBeenCalledWith({ [SETTINGS_VALUE_KEY]: settings });
     });
@@ -274,9 +276,9 @@ describe('broadcastSettingsChanged', () => {
         chrome.tabs.query.mockImplementation((q, cb) => cb([other_d2l_tab]));
         const settings = { theme: 'dark' };
 
-        on_message({ action: 'broadcastSettingsChanged', settings }, { tab: { id: 1 } }, jest.fn());
+        on_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings }, { tab: { id: 1 } }, jest.fn());
 
-        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { action: 'settingsChanged', settings });
+        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { action: Action.SETTINGS_CHANGED, settings });
     });
 });
 
@@ -284,11 +286,11 @@ describe('broadcastSettingsChanged', () => {
 // broadcastSettingsOpened
 // ============================================================
 
-describe('broadcastSettingsOpened', () => {
+describe(Action.BROADCAST_SETTINGS_OPENED, () => {
     test('persists open state as true in local storage', () => {
         chrome.tabs.query.mockImplementation((q, cb) => cb([]));
 
-        on_message({ action: 'broadcastSettingsOpened' }, { tab: { id: 1 } }, jest.fn());
+        on_message({ action: Action.BROADCAST_SETTINGS_OPENED }, { tab: { id: 1 } }, jest.fn());
 
         expect(chrome.storage.local.set).toHaveBeenCalledWith({ [SETTINGS_OPEN_KEY]: true });
     });
@@ -297,9 +299,9 @@ describe('broadcastSettingsOpened', () => {
         const other_d2l_tab = make_d2l_tab(2);
         chrome.tabs.query.mockImplementation((q, cb) => cb([other_d2l_tab]));
 
-        on_message({ action: 'broadcastSettingsOpened' }, { tab: { id: 1 } }, jest.fn());
+        on_message({ action: Action.BROADCAST_SETTINGS_OPENED }, { tab: { id: 1 } }, jest.fn());
 
-        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { action: 'settingsOpened' });
+        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { action: Action.SETTINGS_OPENED });
     });
 });
 
@@ -307,11 +309,11 @@ describe('broadcastSettingsOpened', () => {
 // broadcastSettingsClosed
 // ============================================================
 
-describe('broadcastSettingsClosed', () => {
+describe(Action.BROADCAST_SETTINGS_CLOSED, () => {
     test('persists open state as false in local storage', () => {
         chrome.tabs.query.mockImplementation((q, cb) => cb([]));
 
-        on_message({ action: 'broadcastSettingsClosed' }, { tab: { id: 1 } }, jest.fn());
+        on_message({ action: Action.BROADCAST_SETTINGS_CLOSED }, { tab: { id: 1 } }, jest.fn());
 
         expect(chrome.storage.local.set).toHaveBeenCalledWith({ [SETTINGS_OPEN_KEY]: false });
     });
@@ -320,9 +322,9 @@ describe('broadcastSettingsClosed', () => {
         const other_d2l_tab = make_d2l_tab(2);
         chrome.tabs.query.mockImplementation((q, cb) => cb([other_d2l_tab]));
 
-        on_message({ action: 'broadcastSettingsClosed' }, { tab: { id: 1 } }, jest.fn());
+        on_message({ action: Action.BROADCAST_SETTINGS_CLOSED }, { tab: { id: 1 } }, jest.fn());
 
-        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { action: 'settingsClosed' });
+        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { action: Action.SETTINGS_CLOSED });
     });
 });
 
@@ -335,7 +337,7 @@ describe('chrome.action.onClicked', () => {
         const tab = make_d2l_tab(3);
         on_action_clicked(tab);
 
-        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(3, { action: 'togglePanel' });
+        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(3, { action: Action.TOGGLE_PANEL });
     });
 
     test('does not send togglePanel when the clicked tab is not a D2L tab', () => {
