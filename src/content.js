@@ -7,6 +7,7 @@ import {
     safe_send_message,
     inject_embedded_ui,
     register_panel_restore_callback,
+    register_panel_open_callback,
     toggle_panel,
     panel_width,
 } from "./ui/panel.js";
@@ -14,10 +15,10 @@ import {
     initialize_gui,
     update_gui,
     add_data_status_indicator,
-    build_settings_panel,
     apply_settings,
     set_last_fetched_time,
     register_ui_callbacks,
+    scroll_to_today,
 } from "./ui/components.js";
 
 // ============================================================
@@ -26,8 +27,9 @@ import {
 
 const COURSE_DATA_KEY = "courseData";
 const LAST_FETCHED_KEY = "spark-last-fetched";
-const SETTINGS_OPEN_KEY = "spark-settings-open";
 const SETTINGS_VALUE_KEY = "spark-user-settings";
+// Tab-local, session-scoped (sessionStorage — NOT synced across tabs):
+const SCROLL_POS_SESSION_KEY = "spark-scroll-pos";
 
 // ============================================================
 // State
@@ -60,27 +62,26 @@ window.addEventListener("load", () => {
 
     // -- Scroll persistence --
 
-    // Persist scroll position: save on scroll (debounced 300 ms)
+    // Persist scroll position to sessionStorage: saved on scroll (debounced 300 ms).
     let scroll_save_timer = null;
     calendar_container.addEventListener("scroll", () => {
         clearTimeout(scroll_save_timer);
         scroll_save_timer = setTimeout(() => {
-            safe_send_message({
-                action: Action.SAVE_SCROLL_POSITION,
-                position: calendar_container.scrollTop
-            });
+            sessionStorage.setItem(SCROLL_POS_SESSION_KEY, calendar_container.scrollTop.toString());
         }, 300);
     });
 
     // Returns nothing. Reads the stored scroll position and applies it to the calendar container.
+    // Falls back to scrolling to today's date on first open when no position has been saved.
     function restore_scroll_position() {
-        safe_send_message({ action: Action.GET_SCROLL_POSITION }, function(response) {
-            if (response && response.position > 0) {
-                requestAnimationFrame(() => {
-                    calendar_container.scrollTop = response.position;
-                });
-            }
-        });
+        const saved = parseInt(sessionStorage.getItem(SCROLL_POS_SESSION_KEY) || "0", 10);
+        if (saved > 0) {
+            requestAnimationFrame(() => {
+                calendar_container.scrollTop = saved;
+            });
+        } else {
+            scroll_to_today();
+        }
     }
 
     // -- Panel restore --
@@ -88,9 +89,8 @@ window.addEventListener("load", () => {
     // When this tab's panel is restored after being silently closed by another
     // tab, re-render the in-memory data so the panel is never blank.
     register_panel_restore_callback(() => {
-        // Re-apply settings then re-render so display is correct even if settings
-        // changed on another tab while this panel was silently closed.
-        chrome.storage.local.get([SETTINGS_OPEN_KEY, SETTINGS_VALUE_KEY], function(result) {
+        // Re-apply synced settings then re-render with in-memory data.
+        chrome.storage.local.get([SETTINGS_VALUE_KEY], function(result) {
             if (result[SETTINGS_VALUE_KEY]) {
                 apply_settings(result[SETTINGS_VALUE_KEY]);
             }
@@ -98,24 +98,13 @@ window.addEventListener("load", () => {
                 update_gui(course_data, fetch_in_flight || global_fetch_in_flight);
                 restore_scroll_position();
             }
-            let sp = document.getElementById("spark-settings-panel");
-            if (result[SETTINGS_OPEN_KEY]) {
-                if (!sp) {
-                    sp = build_settings_panel();
-                    document.body.appendChild(sp);
-                }
-                sp.style.right = panel_width + "px";
-                sp.classList.add("open");
-            } else if (sp) {
-                sp.classList.remove("open");
-            }
         });
     });
 
     // -- Initial data load --
 
     // Load stored data first for immediate display
-    chrome.storage.local.get([COURSE_DATA_KEY, LAST_FETCHED_KEY, SETTINGS_OPEN_KEY, SETTINGS_VALUE_KEY], function(result) {
+    chrome.storage.local.get([COURSE_DATA_KEY, LAST_FETCHED_KEY, SETTINGS_VALUE_KEY], function(result) {
         if (result[SETTINGS_VALUE_KEY]) {
             apply_settings(result[SETTINGS_VALUE_KEY]);
         }
@@ -126,18 +115,6 @@ window.addEventListener("load", () => {
             course_data = JSON.parse(JSON.stringify(result[COURSE_DATA_KEY]));
             update_gui(course_data, true);
             restore_scroll_position();
-        }
-        if (result[SETTINGS_OPEN_KEY]) {
-            const widget = document.getElementById("d2l-todolist-widget");
-            if (widget && !widget.classList.contains("hidden") && widget.style.display !== "none") {
-                let sp = document.getElementById("spark-settings-panel");
-                if (!sp) {
-                    sp = build_settings_panel();
-                    document.body.appendChild(sp);
-                }
-                sp.style.right = panel_width + "px";
-                sp.classList.add("open");
-            }
         }
     });
 
@@ -175,6 +152,11 @@ window.addEventListener("load", () => {
     // Register refresh/re-render callbacks so the settings UI in components.js can trigger them
     register_ui_callbacks({ on_refresh: trigger_refresh, on_rerender: trigger_rerender });
 
+    // Restore scroll position whenever the panel is opened (including first open on a new tab).
+    register_panel_open_callback(() => {
+        restore_scroll_position();
+    });
+
     // Fetch fresh data from API
     _refresh_fn();
 });
@@ -209,23 +191,6 @@ chrome.runtime.onMessage.addListener(function(request) {
         toggle_panel();
     }
 
-    if (request.action === Action.SETTINGS_OPENED) {
-        // Don't open the settings panel on a tab whose main panel is currently hidden
-        // (e.g. the inactive side of a split-screen setup).
-        const widget = document.getElementById("d2l-todolist-widget");
-        if (!widget || widget.classList.contains("hidden") || widget.style.display === "none") return;
-        let settings_panel = document.getElementById("spark-settings-panel");
-        if (!settings_panel) {
-            settings_panel = build_settings_panel();
-            document.body.appendChild(settings_panel);
-        }
-        settings_panel.style.right = panel_width + "px";
-        settings_panel.classList.add("open");
-    }
-    if (request.action === Action.SETTINGS_CLOSED) {
-        const settings_panel = document.getElementById("spark-settings-panel");
-        if (settings_panel) settings_panel.classList.remove("open");
-    }
     if (request.action === Action.SETTINGS_CHANGED) {
         apply_settings(request.settings);
         trigger_rerender();
