@@ -11,6 +11,7 @@ import { build_settings_panel } from "./components.js";
 
 const EXPANSION_STATE_KEY = "d2l-todolist-expanded";
 const PANEL_WIDTH_KEY = "d2l-todolist-width";
+const TOGGLE_BTN_TOP_KEY = "spark-toggle-btn-top";
 const TOGGLE_BTN_ID = "spark-toggle-btn";
 const DEFAULT_PANEL_WIDTH = 350;
 const MIN_PANEL_WIDTH = 250;
@@ -101,6 +102,22 @@ function create_embedded_calendar_ui() {
     return { container: new_container, calendar_container, panel };
 }
 
+// Clamps a top pixel value so the button stays fully within the viewport.
+// Returns the clamped top value in pixels.
+function clamp_toggle_top(top_px) {
+    const btn_height = toggle_btn ? toggle_btn.offsetHeight : 40;
+    const max_top = window.innerHeight - btn_height;
+    return Math.max(0, Math.min(top_px, max_top));
+}
+
+// Applies a vertical position to the toggle button and persists it to localStorage.
+function set_toggle_top(top_px) {
+    const clamped = clamp_toggle_top(top_px);
+    toggle_btn.style.top = clamped + "px";
+    toggle_btn.style.transform = "none";
+    localStorage.setItem(TOGGLE_BTN_TOP_KEY, clamped.toString());
+}
+
 // Creates and returns the toggle button DOM element that sits at the panel edge.
 function create_toggle_button() {
     const existing = document.getElementById(TOGGLE_BTN_ID);
@@ -109,15 +126,45 @@ function create_toggle_button() {
     const btn = document.createElement("button");
     btn.id = TOGGLE_BTN_ID;
     btn.setAttribute("title", "Toggle Spark panel");
+    btn.textContent = "\u276E";
 
-    const logo_url = chrome.runtime.getURL("icons/spark_logo.png");
-    const img = document.createElement("img");
-    img.src = logo_url;
-    img.alt = "Spark";
-    img.className = "spark-toggle-logo";
-    btn.appendChild(img);
+    // -- Vertical drag --
+    let is_dragging = false;
+    let drag_start_y = 0;
+    let drag_start_top = 0;
+    let drag_moved = false;
 
-    btn.addEventListener("click", toggle_panel);
+    btn.addEventListener("mousedown", function(e) {
+        is_dragging = true;
+        drag_moved = false;
+        drag_start_y = e.clientY;
+        drag_start_top = btn.getBoundingClientRect().top;
+        document.body.style.userSelect = "none";
+        e.preventDefault();
+    });
+
+    document.addEventListener("mousemove", function(e) {
+        if (!is_dragging) return;
+        const delta_y = e.clientY - drag_start_y;
+        if (Math.abs(delta_y) > 4) drag_moved = true;
+        set_toggle_top(drag_start_top + delta_y);
+    });
+
+    document.addEventListener("mouseup", function() {
+        if (!is_dragging) return;
+        is_dragging = false;
+        document.body.style.userSelect = "";
+    });
+
+    btn.addEventListener("click", function(e) {
+        if (drag_moved) {
+            e.stopImmediatePropagation();
+            drag_moved = false;
+            return;
+        }
+        toggle_panel();
+    });
+
     return btn;
 }
 
@@ -170,7 +217,10 @@ export function toggle_panel() {
             container.classList.add("hidden");
             sessionStorage.setItem(EXPANSION_STATE_KEY, "false");
             document.body.style.marginRight = "0";
-            if (toggle_btn) toggle_btn.style.right = "0px";
+            if (toggle_btn) {
+                toggle_btn.style.right = "0px";
+                toggle_btn.textContent = "\u276E";
+            }
             const animation_handler = () => {
                 container.style.display = "none";
                 container.removeEventListener("animationend", animation_handler);
@@ -192,6 +242,7 @@ export function toggle_panel() {
         sessionStorage.setItem(EXPANSION_STATE_KEY, "true");
         container.style.display = "flex";
         update_body_margin();
+        if (toggle_btn) toggle_btn.textContent = "\u276F";
 
         if (settings_was_open) {
             settings_was_open = false;
@@ -247,18 +298,27 @@ export function inject_embedded_ui() {
 
     toggle_btn = create_toggle_button();
 
+    // Restore saved vertical position, falling back to CSS-centred default.
+    const saved_top = localStorage.getItem(TOGGLE_BTN_TOP_KEY);
+    if (saved_top !== null) {
+        toggle_btn.style.top = saved_top + "px";
+        toggle_btn.style.transform = "none";
+    }
+
     const should_show_panel = sessionStorage.getItem(EXPANSION_STATE_KEY);
 
     console.log("Should show panel?: ", should_show_panel);
 
     if (should_show_panel) {
         toggle_btn.style.right = panel_width + "px";
+        toggle_btn.textContent = "\u276F";
         update_body_margin();
     } else {
         container.style.display = "none";
         container.classList.add("hidden");
         document.body.style.marginRight = "0";
         toggle_btn.style.right = "0px";
+        toggle_btn.textContent = "\u276E";
     }
 
     document.body.appendChild(container);
