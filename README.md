@@ -1,21 +1,23 @@
-# D2L Assignment Tracker
+# Spark for Brightspace
 
-A Chrome extension that adds a side panel to D2L (Brightspace) showing your upcoming assignment due dates without digging through course pages.
+A Chrome extension that adds a side panel to D2L (Brightspace) showing all your upcoming due dates across every enrolled course, without digging through individual course pages.
 
 ## What It Does
 
-D2L buries assignment due dates across multiple pages and course tabs. 
-This extension fixes that by pulling your assignments and displaying them in a clean side panel right when you need them.
+D2L buries assignment due dates across multiple pages and course tabs.
+This extension fixes that by aggregating assignments, quizzes, and discussion deadlines from all your enrolled courses into a single chronological view.
 
-- Fetches all assignments for a course automatically
-- Side panel view with upcoming due dates sorted by date
+- Fetches assignments, quizzes, and discussions from all enrolled courses
+- Chronological calendar view with date headers and color-coded course indicators
+- Frequency bar chart showing which days of the week have the most work due
+- Color-coded urgency indicators (due soon, overdue)
+- Persistent side panel — stays visible as you navigate between pages
 - Works directly on D2L without any extra setup
-- More features to come (see roadmap)
 
 ## Installation (Manual or Web Store)
 
-Note: This extension will work on ANY Chromium based browser.
-(Google Chrome, Microsoft Edge, Opera, Brave, ect)
+Note: This extension will work on any Chromium-based browser.
+(Google Chrome, Microsoft Edge, Opera, Brave, etc.)
 
 Install from Google Web Store:
 
@@ -28,15 +30,24 @@ Install manually:
 git clone https://github.com/CamCatTay/spark-for-brightspace.git
 ```
 
-2. Open Chrome and navigate to `chrome://extensions/`
-3. Enable Developer Mode
-4. Click Load unpacked and select the project folder
-5. Navigate to any D2L course page the side panel icon will appear
+2. Install dependencies and build the extension
+```bash
+npm install
+npm run build
+```
+
+3. Open Chrome and navigate to `chrome://extensions/`
+4. Enable Developer Mode
+5. Click Load unpacked and select the project folder
+6. Navigate to any D2L course page — the side panel icon will appear
+
+After any source change, run `npm run build` again and click the reload icon on the extension card.
 
 ## How It Works
 
-The extension runs on D2L (Brightspace) pages and uses the D2L API to read assignment data for the active course. 
+The extension runs on D2L (Brightspace) pages and uses the D2L REST API to fetch enrollment and activity data for all your courses.
 Results are displayed in a persistent side panel so you can stay oriented without leaving the page.
+A background service worker handles API calls and keeps the panel in sync across multiple open D2L tabs.
 
 ## Roadmap
 
@@ -55,12 +66,5 @@ Found a bug or have a feature idea? Open an issue. This is a side project but fe
 
 ## License
 
-Copyright (c) 2026 CamCatTay and yousef-0614. All rights reserved.
-
-This project is free to use for personal and educational purposes. 
-However, you may not redistribute, republish, rebrand, or submit any 
-version of this project modified or unmodified to the Chrome Web Store 
-or any other platform under your own name or any other identity. Forks 
-for private personal use are permitted, but public redistribution of 
-derivative works is not. Ownership and authorship of this project remain 
-exclusively with the original creators.
+See [LICENSE](LICENSE) for full terms. Personal and educational use is permitted.
+Redistribution and publishing under another identity is not.

@@ -1,6 +1,9 @@
+// test-data.js
+// Provides static fake course data used during development to avoid hitting
+// the live Brightspace API.
+
 /**
  * @typedef {Object} BrightspaceItem
- * @property {string} UserId
  * @property {string} OrgUnitId
  * @property {number} ItemId
  * @property {string} ItemName
@@ -9,11 +12,25 @@
  * @property {string} [StartDate]
  * @property {string} [EndDate]
  * @property {string} [DueDate]
- * @property {number} CompletionType
  * @property {string} [DateCompleted]
  * @property {number} ActivityType
  * @property {boolean} IsExempt
  */
+
+// Activity type IDs as defined by the Brightspace API
+const ActivityType = Object.freeze({
+    ASSIGNMENT: 3,
+    QUIZ:       4,
+    DISCUSSION: 5,
+});
+
+// D2L OrgUnit type ID that identifies a course section
+const COURSE_ORG_UNIT_TYPE_ID = 3;
+
+const FAKE_BASE_COURSE_ID   = 1001;
+const FAKE_ITEMS_PER_COURSE = 15;
+// Days ahead (from start of week) used when randomizing fake due dates
+const FAKE_DATE_RANGE_DAYS  = 31;
 
 const FAKE_COURSE_NAMES = [
     "Data Structures and Algorithms Section 01 Fall 2026",
@@ -75,43 +92,42 @@ const FAKE_DUE_TIMES = [
     { hour: 12, minute: 0  },
 ];
 
-function pickRandom(arr) {
+// Returns a random element from the given array.
+function pick_random(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
 }
 
 /**
  * Generates a single fake BrightspaceItem for testing
- * @param {number} itemId - Unique item ID
- * @param {string} courseId - Course ID
- * @param {number} [activityType] - Optional activity type (3=Assignment, 4=Quiz, 5=Discussion)
+ * @param {number} item_id - Unique item ID
+ * @param {string} course_id - Course ID
+ * @param {number} [activity_type] - Optional activity type (see ActivityType enum)
  * @returns {BrightspaceItem} A fake BrightspaceItem
  */
-function generateFakeBrightspaceItem(itemId, courseId, activityType = 3) {
+function generate_fake_brightspace_item(item_id, course_id, activity_type = ActivityType.ASSIGNMENT) {
     // Random due date between start of this week and 30 days from now
     const today = new Date();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
-    const dueDate = new Date(startOfWeek);
-    dueDate.setDate(startOfWeek.getDate() + Math.floor(Math.random() * (today.getDay() + 31)));
+    const start_of_week = new Date(today);
+    start_of_week.setDate(today.getDate() - today.getDay());
+    const due_date = new Date(start_of_week);
+    due_date.setDate(start_of_week.getDate() + Math.floor(Math.random() * (today.getDay() + FAKE_DATE_RANGE_DAYS)));
 
-    const time = pickRandom(FAKE_DUE_TIMES);
-    dueDate.setHours(time.hour, time.minute, 0, 0);
+    const time = pick_random(FAKE_DUE_TIMES);
+    due_date.setHours(time.hour, time.minute, 0, 0);
 
-    const namePool = activityType === 3 ? FAKE_ASSIGNMENT_NAMES
-                   : activityType === 4 ? FAKE_QUIZ_NAMES
-                   : FAKE_DISCUSSION_NAMES;
-    const name = pickRandom(namePool);
+    const name_pool = activity_type === ActivityType.ASSIGNMENT ? FAKE_ASSIGNMENT_NAMES
+                    : activity_type === ActivityType.QUIZ       ? FAKE_QUIZ_NAMES
+                    : FAKE_DISCUSSION_NAMES;
+    const name = pick_random(name_pool);
 
     return {
-        UserId: "user123",
-        OrgUnitId: courseId.toString(),
-        ItemId: itemId,
+        OrgUnitId: course_id.toString(),
+        ItemId: item_id,
         ItemName: name,
-        ItemType: activityType,
-        ItemUrl: `https://example.brightspace.com/d2l/le/content/${courseId}/viewContent/${itemId}`,
-        DueDate: dueDate.toISOString(),
-        CompletionType: 1,
-        ActivityType: activityType,
+        ItemType: activity_type,
+        ItemUrl: `https://example.brightspace.com/d2l/le/content/${course_id}/viewContent/${item_id}`,
+        DueDate: due_date.toISOString(),
+        ActivityType: activity_type,
         IsExempt: false
     };
 }
@@ -119,16 +135,16 @@ function generateFakeBrightspaceItem(itemId, courseId, activityType = 3) {
 /**
  * Generates multiple fake BrightspaceItems for testing
  * @param {number} count - Number of items to generate
- * @param {string} courseId - Course ID
+ * @param {string} course_id - Course ID
  * @returns {BrightspaceItem[]} Array of fake BrightspaceItems
  */
-function generateFakeBrightspaceItems(count, courseId) {
+function generate_fake_brightspace_items(count, course_id) {
     const items = [];
-    const activityTypes = [3, 4, 5];
+    const ACTIVITY_TYPES = [ActivityType.ASSIGNMENT, ActivityType.QUIZ, ActivityType.DISCUSSION];
 
     for (let i = 1; i <= count; i++) {
-        const activityType = pickRandom(activityTypes);
-        items.push(generateFakeBrightspaceItem(i, courseId, activityType));
+        const activity_type = pick_random(ACTIVITY_TYPES);
+        items.push(generate_fake_brightspace_item(i, course_id, activity_type));
     }
 
     return items;
@@ -136,27 +152,27 @@ function generateFakeBrightspaceItems(count, courseId) {
 
 /**
  * Generates fake courses and items for testing purposes
- * @param {Function} mapData - The mapData function from brightspace.js
+ * @param {Function} map_data - The map_data function from brightspace.js
  * @returns {Object} CourseMap with fake data
  */
-export async function getTestCourseContent(mapData) {
-    const fakeCourses = FAKE_COURSE_NAMES.map((name, i) => ({
+export async function get_test_course_content(map_data) {
+    const fake_courses = FAKE_COURSE_NAMES.map((name, i) => ({
         OrgUnit: {
-            Id: 1001 + i,
+            Id: FAKE_BASE_COURSE_ID + i,
             Name: name,
-            Type: { Id: 3 }
+            Type: { Id: COURSE_ORG_UNIT_TYPE_ID }
         },
-        HomeUrl: `https://example.brightspace.com/d2l/home/${1001 + i}`
+        HomeUrl: `https://example.brightspace.com/d2l/home/${FAKE_BASE_COURSE_ID + i}`
     }));
 
-    const fakeItems = [];
-    fakeCourses.forEach(course => {
-        const courseItems = generateFakeBrightspaceItems(15, course.OrgUnit.Id);
-        fakeItems.push(...courseItems);
+    const fake_items = [];
+    fake_courses.forEach(course => {
+        const course_items = generate_fake_brightspace_items(FAKE_ITEMS_PER_COURSE, course.OrgUnit.Id);
+        fake_items.push(...course_items);
     });
 
-    const courseMap = await mapData(fakeCourses, fakeItems);
+    const course_map = await map_data(fake_courses, fake_items);
 
     console.log("Using TEST MODE - fake course data loaded");
-    return courseMap;
+    return course_map;
 }

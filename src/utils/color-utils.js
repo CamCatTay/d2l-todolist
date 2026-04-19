@@ -1,5 +1,8 @@
+// color-utils.js
+// Assigns and retrieves consistent hex colors for courses using a fixed color pool.
+
 // Color pool as direct hex values for easy fine-tuning
-const COLOR_POOL = [
+export const COLOR_POOL = [
     "#e05555",  // Red
     "#e07c2e",  // Orange
     "#c9a800",  // Yellow
@@ -12,11 +15,11 @@ const COLOR_POOL = [
 // { courseName: colorHex } - assigned lexicographically
 let courseColorMap = {};
 
-function getColorFromPool(index) {
+export function getColorFromPool(index) {
     return COLOR_POOL[index % COLOR_POOL.length];
 }
 
-function ensureCourseColorsAssigned(courseData) {
+export function ensureCourseColorsAssigned(courseData) {
     const allCourseNames = new Set();
     Object.keys(courseData).forEach((courseId) => {
         allCourseNames.add(courseData[courseId].name);
@@ -30,6 +33,11 @@ function ensureCourseColorsAssigned(courseData) {
     });
 }
 
-function getCourseColor(courseName) {
+export function getCourseColor(courseName) {
     return courseColorMap[courseName] || "#808080";
+}
+
+// Allow importing in Node.js / Jest without breaking browser content script loading
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { COLOR_POOL, getColorFromPool, ensureCourseColorsAssigned, getCourseColor, _resetColorMap: () => { courseColorMap = {}; } };
 }
