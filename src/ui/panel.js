@@ -305,9 +305,7 @@ export function inject_embedded_ui() {
         toggle_btn.style.transform = "none";
     }
 
-    const should_show_panel = sessionStorage.getItem(EXPANSION_STATE_KEY);
-
-    console.log("Should show panel?: ", should_show_panel);
+    const should_show_panel = sessionStorage.getItem(EXPANSION_STATE_KEY) === "true";
 
     if (should_show_panel) {
         toggle_btn.style.right = panel_width + "px";
