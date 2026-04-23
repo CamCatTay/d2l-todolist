@@ -15,52 +15,11 @@ applyTo: "**"
 - Use double quotes `""` by default for all strings.
 - Use single quotes `''` only when the string itself contains a double quote, to avoid escaping.
 
-## File Header
-
-Every file must begin with a short comment block describing what the script does:
-
-```js
-// filename.js
-// Brief description of what this file does and what it provides.
-```
-
-## Section Separators
-
-In large files, separate logical sections of code with a full-width banner comment:
-
-```js
-// ============================================================
-// Section Name
-// ============================================================
-```
-
-Inside functions, or in small files with few lines, use a compact inline separator instead:
-
-```js
-// -- Section Name --
-```
-
-Do not mix styles within the same scope level.
-
 ## Function Comments
 
-Every function must have a brief comment directly above it describing:
-- What it returns (always required)
+Complex functions require a short comment above or long comment depending on complexity:
+- Why? Of the function. Why is it needed
 - Any complex or non-obvious parameters (e.g. what a parameter is expected to contain, or what a helper function returns)
-
-Use JSDoc (`@param`, `@returns`) for public or exported functions. A single-line `//` comment is sufficient for private helpers.
-
-```js
-// Returns the base URL (protocol + host) extracted from a full URL string.
-async function get_base_url(tab_url) { ... }
-
-/**
- * Fetches all pages of a paginated Brightspace endpoint and returns the combined results.
- * @param {string} url - The full API URL to fetch (may be paginated)
- * @returns {Promise<Array>} Flat array of all result objects across pages
- */
-async function get_brightspace_data(url) { ... }
-```
 
 ## No Magic Numbers or Strings
 
@@ -96,10 +55,6 @@ This rule applies to all file types in the project — JavaScript, CSS (e.g. z-i
 
 Test files follow all the same conventions above. Additional rules:
 
-- **File header**: same short comment block describing what is being tested and any key setup notes (e.g. how the module is loaded).
-- **Section banners**: one full-width `// ===...===` banner per `describe` block. The banner label matches the function or feature name exactly.
-- **Mock Helpers section**: group all mock/factory helper functions (`mock_json`, `make_tab`, etc.) under a `// Mock Helpers` banner near the top. Each helper gets a brief comment.
-- **Setup section**: `beforeEach`/`afterEach` blocks live under a `// Setup` banner, between Mock Helpers and the first describe block.
 - **Named constants for fixture values**: any constant, enum, or typed value used in a test that originates in the source file **must be exported from the source file and imported in the test**. Never duplicate a value. Parity between a file and its test is critical — if the value changes in the source, the test must automatically reflect that without any manual edits.
 
   Add a `module.exports` compat block to any source file whose test needs its constants:
