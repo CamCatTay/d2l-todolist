@@ -14,7 +14,11 @@
   },
   "permissions": [
     "tabs",
-    "storage"
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://*/d2l/*"
   ],
   "content_scripts": [
     {
