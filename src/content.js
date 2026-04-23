@@ -87,7 +87,6 @@ function on_page_ready() {
     // Falls back to scrolling to today's date on first open when no position has been saved.
     function restore_scroll_position() {
         const saved = parseInt(sessionStorage.getItem(SCROLL_POS_SESSION_KEY) || "0", 10);
-        console.log(saved);
         if (saved > 0) {
             requestAnimationFrame(() => {
                 calendar_container.scrollTop = saved;
