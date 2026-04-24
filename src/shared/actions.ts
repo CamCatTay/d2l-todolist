@@ -23,8 +23,3 @@ export const Action = Object.freeze({
     OPEN_FAQ: "open_faq",
     BROADCAST_SETTINGS_CHANGED: "broadcast_settings_changed",
 })
-
-// Exports for testing
-if (typeof module !== "undefined" && module.exports) {
-    module.exports = { Action };
-}

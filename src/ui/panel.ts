@@ -1,8 +1,8 @@
 // Builds and controls the side panel DOM: tab switching, resize handling,
 // scroll persistence, and rendering course content into the panel.
 
-import { Action } from "../shared/actions.js";
-import { build_settings_panel } from "./components.js";
+import { Action } from "../shared/actions";
+import { build_settings_panel } from "./components";
 
 const EXPANSION_STATE_KEY = "d2l-todolist-expanded";
 const PANEL_WIDTH_KEY = "d2l-todolist-width";
@@ -13,13 +13,13 @@ const MIN_PANEL_WIDTH = 250;
 const PANEL_SLIDE_IN_MS = 400;
 const SETTINGS_TRANSITION_MS = 250;
 
-export let panel_width = DEFAULT_PANEL_WIDTH;
-let container;
-let toggle_btn = null;
-let is_animating = false;
-let settings_was_open = false;
-let _on_panel_restore = null;
-let _on_panel_open = null;
+export let panel_width: number = DEFAULT_PANEL_WIDTH;
+let container: HTMLElement | null;
+let toggle_btn: HTMLButtonElement | null = null;
+let is_animating: boolean = false;
+let settings_was_open: boolean = false;
+let _on_panel_restore: (() => void) | null = null;
+let _on_panel_open: (() => void) | null = null;
 
 
 // Updates the document body's right margin to match the current panel width.
@@ -92,17 +92,17 @@ function create_embedded_calendar_ui() {
 
 // Clamps a top pixel value so the button stays fully within the viewport.
 // Returns the clamped top value in pixels.
-function clamp_toggle_top(top_px) {
+function clamp_toggle_top(top_px: number): number {
     const btn_height = toggle_btn ? toggle_btn.offsetHeight : 40;
     const max_top = window.innerHeight - btn_height;
     return Math.max(0, Math.min(top_px, max_top));
 }
 
 // Applies a vertical position to the toggle button and persists it to localStorage.
-function set_toggle_top(top_px) {
+function set_toggle_top(top_px: number): void {
     const clamped = clamp_toggle_top(top_px);
-    toggle_btn.style.top = clamped + "px";
-    toggle_btn.style.transform = "none";
+    toggle_btn!.style.top = clamped + "px";
+    toggle_btn!.style.transform = "none";
     localStorage.setItem(TOGGLE_BTN_TOP_KEY, clamped.toString());
 }
 
@@ -160,7 +160,7 @@ function create_toggle_button() {
  * @param {Object} message - The message object to send.
  * @param {Function} [callback] - Optional response callback.
  */
-export function safe_send_message(message, callback) {
+export function safe_send_message(message: Record<string, unknown>, callback?: (response: unknown) => void): void {
     try {
         if (callback) {
             chrome.runtime.sendMessage(message, callback);
@@ -168,7 +168,7 @@ export function safe_send_message(message, callback) {
             chrome.runtime.sendMessage(message);
         }
     } catch (e) {
-        if (!e.message?.includes("Extension context invalidated")) {
+        if (!(e as Error).message?.includes("Extension context invalidated")) {
             console.error(e);
         }
     }
@@ -178,7 +178,7 @@ export function safe_send_message(message, callback) {
  * Registers a callback to be invoked when the tab becomes visible with the panel open.
  * @param {Function} fn - The callback to register.
  */
-export function register_panel_restore_callback(fn) {
+export function register_panel_restore_callback(fn: () => void): void {
     _on_panel_restore = fn;
 }
 
@@ -187,14 +187,14 @@ export function register_panel_restore_callback(fn) {
  * Use this to restore scroll position or other per-open state.
  * @param {Function} fn - The callback to register.
  */
-export function register_panel_open_callback(fn) {
+export function register_panel_open_callback(fn: () => void): void {
     _on_panel_open = fn;
 }
 
 /**
  * Toggles the panel open or closed, handling settings panel state and animations.
  */
-export function toggle_panel() {
+export function toggle_panel(): void {
     if (!container || is_animating) return;
     is_animating = true;
 
@@ -206,7 +206,7 @@ export function toggle_panel() {
         const settings_open = sp && sp.classList.contains("open");
 
         const do_close = () => {
-            container.classList.add("hidden");
+            container!.classList.add("hidden");
             sessionStorage.setItem(EXPANSION_STATE_KEY, "false");
             document.body.style.marginRight = "0";
             if (toggle_btn) {
@@ -214,11 +214,11 @@ export function toggle_panel() {
                 toggle_btn.textContent = "\u276E";
             }
             const animation_handler = () => {
-                container.style.display = "none";
-                container.removeEventListener("animationend", animation_handler);
+                container!.style.display = "none";
+                container!.removeEventListener("animationend", animation_handler);
                 is_animating = false;
             };
-            container.addEventListener("animationend", animation_handler);
+            container!.addEventListener("animationend", animation_handler);
         };
 
         if (settings_open) {
@@ -245,7 +245,7 @@ export function toggle_panel() {
                     sp = build_settings_panel();
                     document.body.appendChild(sp);
                 }
-                sp.style.right = (typeof panel_width !== "undefined" ? panel_width : DEFAULT_PANEL_WIDTH) + "px";
+                sp.style.right = panel_width + "px";
                 sp.classList.add("open");
                 if (_on_panel_open) _on_panel_open();
                 // Settings transition completes after another SETTINGS_TRANSITION_MS

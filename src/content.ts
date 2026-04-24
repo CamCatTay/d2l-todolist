@@ -1,7 +1,7 @@
 // Injected into Brightspace pages. Bootstraps the side panel, triggers data
 // fetches via the background worker, and manages panel lifecycle.
 
-import { Action } from "./shared/actions.js";
+import { Action } from "./shared/actions";
 import {
     safe_send_message,
     inject_embedded_ui,
@@ -9,7 +9,7 @@ import {
     register_panel_open_callback,
     toggle_panel,
     panel_width,
-} from "./ui/panel.js";
+} from "./ui/panel";
 import {
     initialize_gui,
     update_gui,
@@ -18,7 +18,9 @@ import {
     set_last_fetched_time,
     register_ui_callbacks,
     scroll_to_today,
-} from "./ui/components.js";
+} from "./ui/components";
+
+import type { CourseData } from "./shared/types";
 
 const COURSE_DATA_KEY = "courseData";
 const LAST_FETCHED_KEY = "spark-last-fetched";
@@ -33,12 +35,12 @@ const SPARK_INITIALIZED_FLAG = "__spark_initialized__";
 const FETCH_COOLDOWN_MS = 5 * 60 * 1000;
 const INTERACTION_DEBOUNCE_MS = 2000;
 
-let fetch_in_flight = false;
-let global_fetch_in_flight = false; // true when another tab's fetch is still running
-let _refresh_fn = null;
-let _rerender_fn = null;
-let last_completed_fetch_time = 0;
-let interaction_debounce_timer = null;
+let fetch_in_flight: boolean = false;
+let global_fetch_in_flight: boolean = false; // true when another tab's fetch is still running
+let _refresh_fn: (() => void) | null = null;
+let _rerender_fn: (() => void) | null = null;
+let last_completed_fetch_time: number = 0;
+let interaction_debounce_timer: ReturnType<typeof setTimeout> | undefined;
 
 function trigger_refresh() {
     if (_refresh_fn) _refresh_fn();
@@ -65,8 +67,8 @@ function on_page_interaction() {
 }
 
 function on_page_ready() {
-    window[SPARK_INITIALIZED_FLAG] = true;
-    let course_data = {};
+    (window as unknown as { [key: string]: unknown })[SPARK_INITIALIZED_FLAG] = true;
+    let course_data: CourseData = {};
 
     const calendar_container = inject_embedded_ui();
     initialize_gui();
@@ -74,7 +76,7 @@ function on_page_ready() {
     // -- Scroll persistence --
 
     // Persist scroll position to sessionStorage: saved on scroll (debounced 300 ms).
-    let scroll_save_timer = null;
+    let scroll_save_timer: ReturnType<typeof setTimeout> | undefined;
     calendar_container.addEventListener("scroll", () => {
         clearTimeout(scroll_save_timer);
         scroll_save_timer = setTimeout(() => {
@@ -104,7 +106,7 @@ function on_page_ready() {
         // Re-apply synced settings then re-render with in-memory data.
         chrome.storage.local.get([SETTINGS_VALUE_KEY], function(result) {
             if (result[SETTINGS_VALUE_KEY]) {
-                apply_settings(result[SETTINGS_VALUE_KEY]);
+                apply_settings(result[SETTINGS_VALUE_KEY] as { days_back: number; show_completed?: boolean });
             }
             if (course_data && Object.keys(course_data).length > 0) {
                 update_gui(course_data, fetch_in_flight || global_fetch_in_flight);
@@ -118,10 +120,10 @@ function on_page_ready() {
     // Load stored data first for immediate display
     chrome.storage.local.get([COURSE_DATA_KEY, LAST_FETCHED_KEY, SETTINGS_VALUE_KEY], function(result) {
         if (result[SETTINGS_VALUE_KEY]) {
-            apply_settings(result[SETTINGS_VALUE_KEY]);
+            apply_settings(result[SETTINGS_VALUE_KEY] as { days_back: number; show_completed?: boolean });
         }
         if (result[LAST_FETCHED_KEY]) {
-            set_last_fetched_time(new Date(result[LAST_FETCHED_KEY]));
+            set_last_fetched_time(new Date(result[LAST_FETCHED_KEY] as string));
         }
         if (result[COURSE_DATA_KEY]) {
             course_data = JSON.parse(JSON.stringify(result[COURSE_DATA_KEY]));
@@ -210,7 +212,7 @@ chrome.runtime.onMessage.addListener(function(request) {
         global_fetch_in_flight = false;
         chrome.storage.local.get([COURSE_DATA_KEY, LAST_FETCHED_KEY], function(result) {
             if (result[LAST_FETCHED_KEY]) {
-                set_last_fetched_time(new Date(result[LAST_FETCHED_KEY]));
+                set_last_fetched_time(new Date(result[LAST_FETCHED_KEY] as string));
             }
             if (result[COURSE_DATA_KEY]) {
                 update_gui(JSON.parse(JSON.stringify(result[COURSE_DATA_KEY])), fetch_in_flight);

@@ -12,14 +12,14 @@ export const COLOR_POOL = [
 ];
 
 // { courseName: colorHex } - assigned lexicographically
-let courseColorMap = {};
+let courseColorMap: Record<string, string> = {};
 
-export function getColorFromPool(index) {
+export function getColorFromPool(index: number): string {
     return COLOR_POOL[index % COLOR_POOL.length];
 }
 
-export function ensureCourseColorsAssigned(courseData) {
-    const allCourseNames = new Set();
+export function ensureCourseColorsAssigned(courseData: Record<string, { name: string }>): void {
+    const allCourseNames = new Set<string>();
     Object.keys(courseData).forEach((courseId) => {
         allCourseNames.add(courseData[courseId].name);
     });
@@ -32,11 +32,6 @@ export function ensureCourseColorsAssigned(courseData) {
     });
 }
 
-export function getCourseColor(courseName) {
+export function getCourseColor(courseName: string): string {
     return courseColorMap[courseName] || "#808080";
-}
-
-// Allow importing in Node.js / Jest without breaking browser content script loading
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { COLOR_POOL, getColorFromPool, ensureCourseColorsAssigned, getCourseColor, _resetColorMap: () => { courseColorMap = {}; } };
 }

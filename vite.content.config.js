@@ -11,7 +11,7 @@ export default defineConfig({
         outDir: "dist",
         emptyOutDir: false,
         rollupOptions: {
-            input: resolve(__dirname, "src/content.js"),
+            input: resolve(__dirname, "src/content.ts"),
             output: {
                 format: "iife",
                 entryFileNames: "content.js",
@@ -19,6 +19,6 @@ export default defineConfig({
         },
     },
     resolve: {
-        extensions: [".js"],
+        extensions: [".ts", ".js"],
     },
 });

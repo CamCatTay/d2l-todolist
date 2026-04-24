@@ -1,6 +1,6 @@
 // Date formatting and comparison helpers used across the UI layer.
 
-export function formatTimeFromDate(dateString) {
+export function formatTimeFromDate(dateString: string | null | undefined): string {
     if (!dateString) return "No time";
     try {
         const date = new Date(dateString);
@@ -10,7 +10,7 @@ export function formatTimeFromDate(dateString) {
     }
 }
 
-export function formatFullDatetime(dateString) {
+export function formatFullDatetime(dateString: string | null | undefined): string {
     if (!dateString) return "No date";
     try {
         const date = new Date(dateString);
@@ -23,7 +23,7 @@ export function formatFullDatetime(dateString) {
     }
 }
 
-export function getDateOnly(dateString) {
+export function getDateOnly(dateString: Date | string | null | undefined): Date | null {
     if (!dateString) return null;
     try {
         const date = new Date(dateString);
@@ -33,7 +33,7 @@ export function getDateOnly(dateString) {
     }
 }
 
-export function formatDateHeader(date) {
+export function formatDateHeader(date: Date): string {
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -57,18 +57,13 @@ export function formatDateHeader(date) {
     return `${title} · ${label}`;
 }
 
-export function getWeekStart(date) {
+export function getWeekStart(date: Date): Date {
     const d = new Date(date);
     const day = d.getDay();
     const diff = d.getDate() - day;
     return new Date(d.getFullYear(), d.getMonth(), diff);
 }
 
-export function getDateKey(date) {
+export function getDateKey(date: Date): string {
     return date.toISOString().split('T')[0];
-}
-
-// Allow importing in Node.js / Jest without breaking browser content script loading
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { formatTimeFromDate, formatFullDatetime, getDateOnly, formatDateHeader, getWeekStart, getDateKey };
 }
