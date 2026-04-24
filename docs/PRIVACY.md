@@ -13,7 +13,7 @@ Spark for Brightspace does **not** collect, transmit, or store any personal data
 ## Permission Justifications
 
 ### `storage`
-`chrome.storage.local` is used to cache fetched course data between page loads and persist user display preferences. `chrome.storage.session` is used to store a single boolean flag per service worker lifecycle to determine whether programmatic injection has already been performed during the current session, preventing duplicate injections on routine service worker wake cycles. No data written to storage is ever transmitted externally.
+`chrome.storage.local` is used to cache fetched course data between page loads, persist user display preferences, and store a randomly generated anonymous install ID (`spark-client-id`). This ID is a UUID created locally by `crypto.randomUUID()` on first install. It is not linked to any account, device, or identity and is used only to distinguish unique installs in aggregate analytics. `chrome.storage.session` is used to store a single boolean flag per service worker lifecycle to determine whether programmatic injection has already been performed during the current session, preventing duplicate injections on routine service worker wake cycles. No personal data written to storage is ever transmitted externally.
 
 ### `tabs`
 The extension maintains a single shared data cache across all concurrently open Brightspace tabs. When one tab completes a fetch, the background service worker must identify all other open Brightspace tabs in order to broadcast a sync message so they update from storage rather than issuing redundant API calls. `chrome.tabs.query` is called solely to filter tabs by URL against the `/d2l/` path. No tab title, page content, or navigation history is accessed at any point.

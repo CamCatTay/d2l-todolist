@@ -73,7 +73,7 @@ Three different storage mechanisms are used intentionally:
 
 | Storage | What lives there | Who reads it |
 |---------|-----------------|--------------|
-| `chrome.storage.local` | Course data, last-fetched timestamp, synced settings (look-back days, show-completed) | Content script + service worker; survives tab close |
+| `chrome.storage.local` | Course data, last-fetched timestamp, synced settings (look-back days, show-completed), anonymous client ID (`spark-client-id`) | Content script + service worker; survives tab close |
 | `localStorage` | Panel width, `CALENDAR_START_DAYS_BACK` | Content script only; per-origin, survives browser restart |
 | `sessionStorage` | Scroll position, hidden courses, hidden item types | Content script only; per-tab, cleared when tab closes |
 
@@ -188,6 +188,10 @@ Any constant used in a test that originates in a source file must be imported fr
 ---
 
 ## Known gotchas and non-obvious behavior
+
+**Uninstall page and feedback.** `chrome.runtime.setUninstallURL` points Chrome at `docs/uninstall.html` (hosted on GitHub Pages). When a user uninstalls, Chrome opens that page, which presents a short survey. Responses are `POST`ed (as JSON, `mode: no-cors`) to a Google Apps Script web app (`scripts/uninstall-feedback.gs`) which appends a row to a Google Sheet. Because `no-cors` responses are opaque, the page optimistically shows a success state regardless of network outcome.
+
+**Anonymous client ID.** `chrome.runtime.onInstalled` fires with `reason === "install"` once on first install. The handler generates a UUID with `crypto.randomUUID()` and stores it in `chrome.storage.local` under `CLIENT_ID_KEY` (`spark-client-id`). It is never regenerated on updates or re-enables. Use `chrome.storage.local.get(CLIENT_ID_KEY)` to read it when tagging analytics events.
 
 **`dist/` is committed to the repo.** The extension loads from `dist/`, and users who Load Unpacked from the repo root need those files to exist. Keep `dist/` up to date before committing source changes.
 
