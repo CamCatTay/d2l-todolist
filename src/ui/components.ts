@@ -1,10 +1,19 @@
 // Reusable UI component factories: course cards, item rows, date headers,
 // settings panel, and course name formatting utilities.
 
-import { Action } from "../shared/actions.js";
-import { formatTimeFromDate, formatFullDatetime, getDateOnly, formatDateHeader, getWeekStart, getDateKey } from "../utils/date-utils.js";
-import { getCourseColor, ensureCourseColorsAssigned } from "../utils/color-utils.js";
-import { safe_send_message, panel_width } from "./panel.js";
+import { Action } from "../shared/actions";
+import { formatTimeFromDate, formatFullDatetime, getDateOnly, formatDateHeader, getWeekStart, getDateKey } from "../utils/date-utils";
+import { getCourseColor, ensureCourseColorsAssigned } from "../utils/color-utils";
+import { safe_send_message, panel_width } from "./panel";
+import type { CourseData, CourseShape, ItemShape } from "../shared/types";
+
+// Augmented HTMLDivElement for the frequency chart container, which stores
+// week navigation state directly on the element to avoid module-level state.
+interface FrequencyChartContainer extends HTMLDivElement {
+    _todayWeekStart: number;
+    _weekOffset: number;
+    _calendarContainer: HTMLElement;
+}
 
 const COURSE_NAME_TRIM_WORDS = [
     "Section",
@@ -42,13 +51,13 @@ const HIDDEN_COURSES_SESSION_KEY = "spark-hidden-courses";
 const HIDDEN_TYPES_SESSION_KEY = "spark-hidden-types";
 
 // Callbacks registered by content.js so settings UI can trigger refresh/re-render
-let _on_refresh = null;
-let _on_rerender = null;
+let _on_refresh: (() => void) | null = null;
+let _on_rerender: (() => void) | null = null;
 
-let _last_course_data = {};
-let last_fetched_time = null;
-let hidden_course_ids = new Set(JSON.parse(sessionStorage.getItem(HIDDEN_COURSES_SESSION_KEY) || "[]"));
-let hidden_types = new Set(JSON.parse(sessionStorage.getItem(HIDDEN_TYPES_SESSION_KEY) || "[]"));
+let _last_course_data: CourseData = {};
+let last_fetched_time: Date | null = null;
+let hidden_course_ids = new Set<string>(JSON.parse(sessionStorage.getItem(HIDDEN_COURSES_SESSION_KEY) || "[]"));
+let hidden_types = new Set<string>(JSON.parse(sessionStorage.getItem(HIDDEN_TYPES_SESSION_KEY) || "[]"));
 
 let CALENDAR_START_DAYS_BACK = parseInt(localStorage.getItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY) ?? "7", 10);
 if (!Number.isFinite(CALENDAR_START_DAYS_BACK) || CALENDAR_START_DAYS_BACK < 0) CALENDAR_START_DAYS_BACK = 7;
@@ -56,7 +65,7 @@ if (!Number.isFinite(CALENDAR_START_DAYS_BACK) || CALENDAR_START_DAYS_BACK < 0) 
 // Default true: show completed items unless the user has explicitly turned it off.
 let show_completed_items = localStorage.getItem(SHOW_COMPLETED_STORAGE_KEY) !== "false";
 
-function truncate_course_name(name) {
+function truncate_course_name(name: string): string {
     if (!name) return name;
     const pattern = COURSE_NAME_TRIM_WORDS
         .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
@@ -64,14 +73,14 @@ function truncate_course_name(name) {
     return name.replace(new RegExp(`\\s*(${pattern})\\b.*$`, "i"), "").trim();
 }
 
-function create_scrollbar_indicator(calendar_container) {
-    const existing_indicator = calendar_container.parentElement.querySelector(".scrollbar-indicator");
+function create_scrollbar_indicator(calendar_container: HTMLElement): void {
+    const existing_indicator = calendar_container.parentElement?.querySelector(".scrollbar-indicator");
     if (existing_indicator) existing_indicator.remove();
 
     const indicator = document.createElement("div");
     indicator.className = "scrollbar-indicator";
 
-    const assignments = calendar_container.querySelectorAll(".calendar-item");
+    const assignments = calendar_container.querySelectorAll<HTMLElement>(".calendar-item");
     if (assignments.length === 0) return;
 
     const container_height = calendar_container.clientHeight;
@@ -79,7 +88,7 @@ function create_scrollbar_indicator(calendar_container) {
     if (scroll_height <= container_height) return;
 
     assignments.forEach((assignment_el) => {
-        const course_el = assignment_el.querySelector(".item-course");
+        const course_el = assignment_el.querySelector<HTMLElement>(".item-course");
         const course_name = course_el?.dataset.fullName || course_el?.textContent || "";
         const course_color = getCourseColor(course_name);
         const position_in_container = assignment_el.offsetTop;
@@ -94,20 +103,20 @@ function create_scrollbar_indicator(calendar_container) {
         indicator.appendChild(notch);
     });
 
-    calendar_container.parentElement.appendChild(indicator);
+    calendar_container.parentElement?.appendChild(indicator);
 
     calendar_container.addEventListener("scroll", () => {
         update_scrollbar_indicator(calendar_container);
     });
 }
 
-function update_scrollbar_indicator(calendar_container) {
-    const indicator = calendar_container.parentElement.querySelector(".scrollbar-indicator");
+function update_scrollbar_indicator(calendar_container: HTMLElement): void {
+    const indicator = calendar_container.parentElement?.querySelector(".scrollbar-indicator");
     if (!indicator) return;
 
     const scroll_height = calendar_container.scrollHeight;
-    const assignments = calendar_container.querySelectorAll(".calendar-item");
-    const notches = indicator.querySelectorAll(".scrollbar-notch");
+    const assignments = calendar_container.querySelectorAll<HTMLElement>(".calendar-item");
+    const notches = indicator.querySelectorAll<HTMLElement>(".scrollbar-notch");
 
     notches.forEach((notch, index) => {
         if (index < assignments.length) {
@@ -118,13 +127,13 @@ function update_scrollbar_indicator(calendar_container) {
     });
 }
 
-function create_assignment_element(item, course) {
+function create_assignment_element(item: ItemShape, course: CourseShape): HTMLAnchorElement {
     const assignment_container = document.createElement("a");
-    assignment_container.href = item.url;
+    assignment_container.href = item.url ?? "";
     assignment_container.className = "calendar-item";
 
     const now = new Date();
-    const now_date_only = getDateOnly(now);
+    const now_date_only = getDateOnly(now)!;
     const start_date_only = item.start_date ? getDateOnly(item.start_date) : null;
     const is_not_yet_available = start_date_only && start_date_only > now_date_only;
 
@@ -161,7 +170,7 @@ function create_assignment_element(item, course) {
     const tomorrow_date_only = new Date(now_date_only);
     tomorrow_date_only.setDate(tomorrow_date_only.getDate() + 1);
     // Incomplete and past due
-    if (!item.completed && due_date_only < now_date_only) {
+    if (!item.completed && due_date_only && due_date_only < now_date_only) {
         due_time.style.color = OVERDUE_COLOR;
     // Due today
     } else if (due_date_only && due_date_only.getTime() === now_date_only.getTime()) {
@@ -206,11 +215,11 @@ function create_assignment_element(item, course) {
     return assignment_container;
 }
 
-export function initialize_gui() {
-    update_gui({}, true);
+export function initialize_gui(): void {
+    update_gui({} as CourseData, true);
 }
 
-export function add_data_status_indicator(is_stale) {
+export function add_data_status_indicator(is_stale: boolean): void {
     const existing_status = document.querySelector(".fetch-status");
     if (existing_status) existing_status.remove();
 
@@ -226,7 +235,7 @@ export function add_data_status_indicator(is_stale) {
     }
 }
 
-export function update_gui(course_data, is_from_cache = false) {
+export function update_gui(course_data: CourseData, is_from_cache: boolean = false): void {
     const calendar_container = document.getElementById("calendar-container");
     if (!calendar_container) return;
 
@@ -234,15 +243,15 @@ export function update_gui(course_data, is_from_cache = false) {
     ensureCourseColorsAssigned(course_data);
     update_settings_course_list(course_data);
 
-    const existing_chart = calendar_container.querySelector("#frequency-chart");
+    const existing_chart = calendar_container.querySelector("#frequency-chart") as FrequencyChartContainer | null;
     const preserved_week_offset = existing_chart ? (existing_chart._weekOffset || 0) : 0;
 
     calendar_container.innerHTML = "";
 
     // Collect all items with due dates
-    const items_by_date = {};
-    let min_date = null;
-    let max_date = null;
+    const items_by_date: Record<string, Array<{ item: ItemShape; course: CourseShape }>> = {};
+    let min_date: Date | null = null;
+    let max_date: Date | null = null;
 
     Object.keys(course_data).forEach((course_id) => {
         const course = course_data[course_id];
@@ -286,14 +295,13 @@ export function update_gui(course_data, is_from_cache = false) {
     } catch (e) {
         console.error("Error creating frequency chart (non-fatal):", e);
     }
-
     if (is_from_cache) {
         add_data_status_indicator(true);
     }
 
     // Empty state — chart is already rendered above for the buttons and loading indicator
     if (!min_date || !max_date) {
-        const existing_indicator = calendar_container.parentElement.querySelector(".scrollbar-indicator");
+        const existing_indicator = calendar_container.parentElement?.querySelector(".scrollbar-indicator");
         if (existing_indicator) existing_indicator.remove();
         const empty_message = document.createElement("div");
         empty_message.id = "loading-indicator";
@@ -341,17 +349,17 @@ export function update_gui(course_data, is_from_cache = false) {
     create_scrollbar_indicator(calendar_container);
 }
 
-export function set_last_fetched_time(t) {
+export function set_last_fetched_time(t: Date): void {
     last_fetched_time = t;
 }
 
-function create_frequency_chart(calendar_container, items_by_date, initial_week_offset = 0) {
+function create_frequency_chart(calendar_container: HTMLElement, items_by_date: Record<string, Array<{ item: ItemShape; course: CourseShape }>>, initial_week_offset: number = 0): void {
     // Get the week containing today
     const today = new Date();
     const today_week_start = getWeekStart(today);
 
     // Create chart container
-    const chart_container = document.createElement("div");
+    const chart_container = document.createElement("div") as unknown as FrequencyChartContainer;
     chart_container.className = "frequency-chart-container";
     chart_container.id = "frequency-chart";
 
@@ -491,7 +499,7 @@ function create_frequency_chart(calendar_container, items_by_date, initial_week_
     }
 }
 
-function render_frequency_chart(chart_container, items_by_date, today_week_start, week_offset, calendar_container) {
+function render_frequency_chart(chart_container: FrequencyChartContainer, items_by_date: Record<string, Array<{ item: ItemShape; course: CourseShape }>>, today_week_start: Date | number, week_offset: number, calendar_container: HTMLElement): void {
     try {
         const grid = chart_container.querySelector("#frequency-chart-grid");
         if (!grid) return; // Safety check
@@ -554,7 +562,7 @@ function render_frequency_chart(chart_container, items_by_date, today_week_start
 
             const date_num = document.createElement("div");
             date_num.className = "frequency-day-date";
-            date_num.textContent = day_date.getDate();
+            date_num.textContent = day_date.getDate().toString();
             day_cell.appendChild(date_num);
 
             const bar_container = document.createElement("div");
@@ -565,10 +573,9 @@ function render_frequency_chart(chart_container, items_by_date, today_week_start
             bar.style.height = height_percent + "%";
             bar_container.appendChild(bar);
             day_cell.appendChild(bar_container);
-
             const count_label = document.createElement("div");
             count_label.className = "frequency-day-count";
-            count_label.textContent = count > 0 ? count : "—";
+            count_label.textContent = count > 0 ? count.toString() : "—";
             day_cell.appendChild(count_label);
 
             // Add click handler to scroll to this date
@@ -586,7 +593,7 @@ function render_frequency_chart(chart_container, items_by_date, today_week_start
     }
 }
 
-function scroll_to_date(calendar_container, target_date) {
+function scroll_to_date(calendar_container: HTMLElement, target_date: Date): void {
     try {
         const date_headers = Array.from(calendar_container.querySelectorAll(".calendar-date-header"));
 
@@ -609,14 +616,14 @@ function scroll_to_date(calendar_container, target_date) {
                     const chart_height = chart_el ? chart_el.getBoundingClientRect().height : 0;
                     const container_rect = calendar_container.getBoundingClientRect();
 
-                    const items_container = header.nextElementSibling;
-                    let target_scroll;
-                    if (items_container) {
-                        const items_rect = items_container.getBoundingClientRect();
-                        // Absolute position of the items container within scrollable content
-                        const items_absolute_pos = items_rect.top - container_rect.top + calendar_container.scrollTop;
-                        // The header sits directly above the items container; offsetHeight is unaffected by sticky
-                        target_scroll = Math.max(0, items_absolute_pos - header.offsetHeight - chart_height);
+const items_container = header.nextElementSibling as HTMLElement | null;
+        let target_scroll: number;
+        if (items_container) {
+            const items_rect = items_container.getBoundingClientRect();
+            // Absolute position of the items container within scrollable content
+            const items_absolute_pos = items_rect.top - container_rect.top + calendar_container.scrollTop;
+            // The header sits directly above the items container; offsetHeight is unaffected by sticky
+            target_scroll = Math.max(0, items_absolute_pos - (header as HTMLElement).offsetHeight - chart_height);
                     } else {
                         // Fallback for a header with no following sibling
                         const header_rect = header.getBoundingClientRect();
@@ -634,10 +641,10 @@ function scroll_to_date(calendar_container, target_date) {
     }
 }
 
-function update_frequency_nav_buttons(chart_container) {
+function update_frequency_nav_buttons(chart_container: FrequencyChartContainer): void {
     try {
-        const prev_btn = chart_container.querySelector("#frequency-chart-prev");
-        const next_btn = chart_container.querySelector("#frequency-chart-next");
+const prev_btn = chart_container.querySelector<HTMLButtonElement>("#frequency-chart-prev");
+    const next_btn = chart_container.querySelector<HTMLButtonElement>("#frequency-chart-next");
         if (!prev_btn || !next_btn) return;
 
         const offset = chart_container._weekOffset || 0;
@@ -646,8 +653,7 @@ function update_frequency_nav_buttons(chart_container) {
         prev_btn.disabled = offset <= 0;
 
         // Next button always enabled (no upper limit)
-        next_btn.disabled = false;
-    } catch (e) {
+        next_btn.disabled = false;    } catch (e) {
         console.error("Error updating frequency nav buttons:", e);
     }
 }
@@ -657,7 +663,7 @@ export function scroll_to_today() {
     if (cal) scroll_to_date(cal, new Date());
 }
 
-export function register_ui_callbacks({ on_refresh, on_rerender }) {
+export function register_ui_callbacks({ on_refresh, on_rerender }: { on_refresh: () => void; on_rerender: () => void }): void {
     _on_refresh = on_refresh;
     _on_rerender = on_rerender;
 }
@@ -669,7 +675,7 @@ function get_synced_settings() {
     };
 }
 
-export function apply_settings({ days_back, show_completed }) {
+export function apply_settings({ days_back, show_completed }: { days_back: number; show_completed?: boolean }): void {
     CALENDAR_START_DAYS_BACK = days_back;
     localStorage.setItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY, days_back.toString());
 
@@ -678,10 +684,10 @@ export function apply_settings({ days_back, show_completed }) {
         localStorage.setItem(SHOW_COMPLETED_STORAGE_KEY, show_completed.toString());
     }
 
-    const days_input = document.getElementById("spark-setting-days-back");
+    const days_input = document.getElementById("spark-setting-days-back") as HTMLInputElement | null;
     if (days_input) days_input.value = days_back.toString();
 
-    const completed_toggle = document.getElementById("spark-setting-show-completed");
+    const completed_toggle = document.getElementById("spark-setting-show-completed") as HTMLInputElement | null;
     if (completed_toggle) completed_toggle.checked = show_completed_items;
 }
 
@@ -854,7 +860,7 @@ export function build_settings_panel() {
     return panel;
 }
 
-function update_settings_course_list(course_data, list_el = null) {
+function update_settings_course_list(course_data: CourseData, list_el: HTMLElement | null = null): void {
     const list = list_el || document.getElementById("spark-settings-courses-list");
     if (!list) return;
 

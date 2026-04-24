@@ -11,7 +11,7 @@ export default defineConfig({
         outDir: "dist",
         emptyOutDir: false,
         rollupOptions: {
-            input: resolve(__dirname, "src/background.js"),
+            input: resolve(__dirname, "src/background.ts"),
             output: {
                 format: "es",
                 entryFileNames: "background.js",
@@ -19,7 +19,7 @@ export default defineConfig({
         },
     },
     resolve: {
-        extensions: [".js"],
+        extensions: [".ts", ".js"],
         alias: {
             "/src": resolve(__dirname, "src"),
         },

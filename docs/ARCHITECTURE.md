@@ -12,10 +12,10 @@ There are two runtime contexts that can never share memory:
 
 | Context | File | Notes |
 |---------|------|-------|
-| Content script | `src/content.js` | Injected into each D2L tab; owns runtime state |
-| Service worker | `src/background.js` | Shared singleton; handles API calls and message routing |
+| Content script | `src/content.ts` | Injected into each D2L tab; owns runtime state |
+| Service worker | `src/background.ts` | Shared singleton; handles API calls and message routing |
 
-Everything in `src/ui/` and `src/utils/` runs only in the content script context. `src/api/brightspace.js` runs only in the service worker. `src/shared/actions.js` is inlined into both bundles at build time.
+Everything in `src/ui/` and `src/utils/` runs only in the content script context. `src/api/brightspace.ts` runs only in the service worker. `src/shared/actions.ts` is inlined into both bundles at build time. `src/shared/types.ts` defines plain-object interfaces (`CourseShape`, `ItemShape`, `CourseData`) shared across the message boundary — these are type-only and have no runtime presence in either bundle.
 
 ---
 
@@ -24,21 +24,23 @@ Everything in `src/ui/` and `src/utils/` runs only in the content script context
 The browser loads `dist/content.js` and `dist/background.js`. These are built by Vite from `src/`. **Never edit `dist/` directly.**
 
 ```
-src/content.js   →  vite.content.config.js   →  dist/content.js    (IIFE format)
-src/background.js →  vite.background.config.js →  dist/background.js  (ES module format)
+src/content.ts   →  vite.content.config.js   →  dist/content.js    (IIFE format)
+src/background.ts →  vite.background.config.js →  dist/background.js  (ES module format)
 ```
+
+Vite compiles TypeScript to JavaScript internally via esbuild — `tsc` is not used for emit. Running `./node_modules/.bin/tsc --noEmit` is used only for type-checking.
 
 **Why IIFE for the content script?** Chrome injects content scripts as plain `<script>` tags into the host page. There's no module resolution — `import` statements just fail. Vite's IIFE format wraps everything in `(function() { ... })()` and inlines all dependencies, so the output is a single self-contained file.
 
 **Why ES module for the background?** MV3 service workers support `type: "module"` natively. It's also required for top-level `await`. The background script gets bundled anyway so `actions.js` works the same way in both contexts.
 
-**Shared modules are duplicated, not shared.** Vite inlines a copy of `actions.js` (and any other shared module) into each bundle independently. The two bundles have no runtime linkage. If you change a shared module, both bundles must be rebuilt.
+**Shared modules are duplicated, not shared.** Vite inlines a copy of `actions.ts` (and any other shared module) into each bundle independently. The two bundles have no runtime linkage. If you change a shared module, both bundles must be rebuilt.
 
 ---
 
 ## Message flow
 
-All communication between the content script and service worker goes through `chrome.runtime.sendMessage` / `chrome.runtime.onMessage`. The `Action` enum in `src/shared/actions.js` defines all message types. Never use bare strings for message actions.
+All communication between the content script and service worker goes through `chrome.runtime.sendMessage` / `chrome.runtime.onMessage`. The `Action` enum in `src/shared/actions.ts` defines all message types. Never use bare strings for message actions.
 
 ### Fetch sequence (happy path)
 
@@ -87,7 +89,7 @@ If you add a new setting, decide: should it sync across tabs? → `chrome.storag
 
 ---
 
-## The API layer (`src/api/brightspace.js`)
+## The API layer (`src/api/brightspace.ts`)
 
 ### How it finds courses
 
@@ -123,13 +125,13 @@ The comment in the code notes that `.join(",")` was chosen over an alternative a
 
 ### API version strings
 
-D2L endpoints embed version numbers: `/d2l/api/le/1.82/...`, `/d2l/api/lp/1.49/...`. These are embedded in the endpoint strings defined as functions in `brightspace.js`. Don't inline new version numbers — if you add an endpoint, define a clearly named helper function for it.
+D2L endpoints embed version numbers: `/d2l/api/le/1.82/...`, `/d2l/api/lp/1.49/...`. These are embedded in the endpoint strings defined as functions in `brightspace.ts`. Don't inline new version numbers — if you add an endpoint, define a clearly named helper function for it.
 
 ---
 
 ## UI layer
 
-### `panel.js` — the panel shell
+### `panel.ts` — the panel shell
 
 Owns the panel DOM: `#d2l-todolist-widget` (outer container) → `#d2l-todolist-panel` → `#calendar-container`. Also creates the floating toggle button (`#spark-toggle-btn`).
 
@@ -140,7 +142,7 @@ Key responsibilities:
 - **Toggle button drag**: The floating toggle button (`#spark-toggle-btn`) is vertically draggable. Its position is persisted to `localStorage` (`TOGGLE_BTN_TOP_KEY`). A small drag threshold (4px) distinguishes a drag from a click.
 - **Tab visibility restore**: `register_panel_restore_callback` fires whenever the tab becomes visible again (`visibilitychange` event) with the panel already open. It re-applies synced settings and re-renders from in-memory data.
 
-### `components.js` — all visual rendering
+### `components.ts` — all visual rendering
 
 The heaviest file. Responsible for:
 - The chronological calendar list (date headers + item cards)
@@ -153,11 +155,11 @@ The heaviest file. Responsible for:
 
 Settings that sync across tabs are saved to `chrome.storage.local` + broadcast via the background. Settings that are session-only (hidden courses, hidden item types) go straight to `sessionStorage`.
 
-### `color-utils.js` — stable course colors
+### `color-utils.ts` — stable course colors
 
 Courses are sorted lexicographically by name, then each gets a color from the 7-color pool by index. This means color assignment is deterministic and consistent across sessions and tabs, as long as the set of course names doesn't change. If a new course appears mid-semester, all colors may shift (because lexicographic order changes). This is a known limitation.
 
-### `date-utils.js`
+### `date-utils.ts`
 
 Pure formatting helpers. No side effects. `formatDateHeader` is the one with the "Today · " / "Tomorrow · " prefix logic.
 
@@ -171,19 +173,9 @@ If you add a style and it's not applying, the most common cause is a D2L style w
 
 ## Testing
 
-Tests live in `tests/` and use Jest. They import directly from `src/` — no build needed. Vite's module graph is bypassed entirely.
+Tests live in `tests/` and use [Vitest](https://vitest.dev/), which shares the same esbuild pipeline as the Vite build — TypeScript works with zero extra config. Run them with `npm test`.
 
-Because the tests run in Node.js (not a browser), any file that needs to be tested must export its constants via a CommonJS compat block at the bottom:
-
-```js
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { MY_CONSTANT, MyEnum };
-}
-```
-
-The `if` guard means the file still works as an ES module in the browser (where `module` is undefined). The tests then import with `require('../src/my-file.js')`.
-
-Any constant used in a test that originates in a source file must be imported from that source file, not redefined in the test. This ensures test parity — if the value changes in source, the test automatically reflects it.
+Each source module that needs test isolation exports a minimal testing seam (e.g. `_resetColorMap()` in `color-utils.ts`). Modules with top-level side effects (e.g. `background.ts`) are imported dynamically inside `beforeEach` via `vi.doMock` + `vi.resetModules` + `await import()` so each test starts with a fresh module instance.
 
 ---
 
@@ -197,11 +189,11 @@ Any constant used in a test that originates in a source file must be imported fr
 
 **The service worker can sleep.** MV3 service workers are terminated by Chrome when idle. The background script re-registers its `onMessage` listener on every wake. This is fine for request/response patterns but means you can't store anything in module-level variables in the background script and expect it to persist between messages.
 
-**`safe_send_message` in `panel.js`** wraps `chrome.runtime.sendMessage` with error suppression. The service worker might not be awake yet when a message is sent — this prevents uncaught errors in that case. If you're debugging missing message responses, check whether the service worker is awake.
+**`safe_send_message` in `panel.ts`** wraps `chrome.runtime.sendMessage` with error suppression. The service worker might not be awake yet when a message is sent — this prevents uncaught errors in that case. If you're debugging missing message responses, check whether the service worker is awake.
 
-**Course name truncation** strips words like "Section", "Fall", "Spring", "Group", and "XLS" from the end of course names for display. The full name is still used for color assignment and internal keying. If a course name looks wrong in the UI, check `COURSE_NAME_TRIM_WORDS` in `components.js`.
+**Course name truncation** strips words like "Section", "Fall", "Spring", "Group", and "XLS" from the end of course names for display. The full name is still used for color assignment and internal keying. If a course name looks wrong in the UI, check `COURSE_NAME_TRIM_WORDS` in `components.ts`.
 
-**Start dates are cleared if in the past.** `clear_past_start_date()` in `brightspace.js` returns `null` if the item's start date has already passed. This prevents items from showing a start date that's already come and gone, which would be confusing.
+**Start dates are cleared if in the past.** `clear_past_start_date()` in `brightspace.ts` returns `null` if the item's start date has already passed. This prevents items from showing a start date that's already come and gone, which would be confusing.
 
 **Discussions use forum → topics → posts hierarchy.** Each course can have multiple forums, each forum has multiple topics, and each topic has posts. The extension fetches all three levels. If a professor creates a lot of discussion forums, this can be a meaningful number of API calls.
 
@@ -211,9 +203,9 @@ Any constant used in a test that originates in a source file must be imported fr
 
 | File | Lines |
 |------|-------|
-| `src/api/brightspace.js` | ~400 |
-| `src/ui/components.js` | ~600+ |
-| `src/ui/panel.js` | ~250 |
-| `src/content.js` | ~200 |
-| `src/background.js` | ~70 |
+| `src/api/brightspace.ts` | ~400 |
+| `src/ui/components.ts` | ~600+ |
+| `src/ui/panel.ts` | ~250 |
+| `src/content.ts` | ~200 |
+| `src/background.ts` | ~70 |
 | `styles/sidepanel.css` | ~600+ |
