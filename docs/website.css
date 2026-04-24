@@ -586,6 +586,10 @@ a {
     margin-top: 4px;
 }
 
+.uninstall-success[hidden] {
+    display: none;
+}
+
 .uninstall-success {
     display: flex;
     align-items: flex-start;
