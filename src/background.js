@@ -10,10 +10,17 @@ const FAQ_URL = "https://camcattay.github.io/spark-for-brightspace/faq.html";
 const UNINSTALL_URL = "https://camcattay.github.io/spark-for-brightspace/uninstall.html";
 const SPARK_INITIALIZED_FLAG = "__spark_initialized__";
 const SESSION_WORKER_INITIALIZED_KEY = "worker_initialized";
+const CLIENT_ID_KEY = "spark-client-id";
 
-if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.setUninstallURL) {
-    chrome.runtime.setUninstallURL(UNINSTALL_URL);
-}
+chrome.runtime.setUninstallURL(UNINSTALL_URL);
+
+// Generates a persistent anonymous client ID on first install and stores it.
+// Used to distinguish unique users in analytics without collecting any personal data.
+chrome.runtime.onInstalled.addListener(function(details) {
+    if (details.reason !== "install") return;
+    const client_id = crypto.randomUUID();
+    chrome.storage.local.set({ [CLIENT_ID_KEY]: client_id });
+});
 
 function broadcast_to_d2l_tabs(sender_tab_id, message) {
     chrome.tabs.query({}, function(tabs) {
@@ -102,5 +109,6 @@ if (typeof module !== 'undefined' && module.exports) {
         UNINSTALL_URL,
         SPARK_INITIALIZED_FLAG,
         SESSION_WORKER_INITIALIZED_KEY,
+        CLIENT_ID_KEY,
     };
 }

@@ -9,7 +9,11 @@ jest.mock('/src/api/brightspace.js', () => ({
 // Stub chrome before the require so background.js side effects don't throw.
 // beforeEach replaces this with proper jest mocks for each test.
 global.chrome = {
-    runtime: { onMessage: { addListener: () => {} } },
+    runtime: {
+        onMessage:    { addListener: () => {} },
+        onInstalled:  { addListener: () => {} },
+        setUninstallURL: () => {},
+    },
     tabs:    { query: () => {}, sendMessage: () => {}, create: () => {} },
     storage: {
         local:   { set: () => {}, get: () => {}, remove: () => {} },
@@ -45,7 +49,11 @@ beforeEach(() => {
     jest.resetModules();
 
     global.chrome = {
-        runtime: { onMessage: { addListener: jest.fn() } },
+        runtime: {
+            onMessage:    { addListener: jest.fn() },
+            onInstalled:  { addListener: jest.fn() },
+            setUninstallURL: jest.fn(),
+        },
         tabs: {
             query: jest.fn(),
             sendMessage: jest.fn().mockResolvedValue(undefined),
