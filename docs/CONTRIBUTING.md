@@ -24,7 +24,7 @@ To run tests:
 npm test
 ```
 
-Tests import directly from `src/` — you don't need to build first.
+> **Note:** Tests are currently disabled pending a rewrite for TypeScript. Running `npm test` will print a notice. The test files in `tests/` are kept for reference.
 
 ---
 
@@ -32,22 +32,23 @@ Tests import directly from `src/` — you don't need to build first.
 
 ```
 src/
-  background.js        service worker — message router, cross-tab sync
-  content.js           content script — owns runtime state, wires everything together
+  background.ts        service worker — message router, cross-tab sync
+  content.ts           content script — owns runtime state, wires everything together
   api/
-    brightspace.js     all D2L API calls + HTML scraping fallbacks
+    brightspace.ts     all D2L API calls + HTML scraping fallbacks
   shared/
-    actions.js         Action enum used for chrome message passing
+    actions.ts         Action enum used for chrome message passing
+    types.ts           shared plain-object interfaces (CourseShape, ItemShape, CourseData)
   ui/
-    panel.js           panel DOM, resize, show/hide, toggle button
-    components.js      all rendering: calendar list, frequency chart, settings panel
+    panel.ts           panel DOM, resize, show/hide, toggle button
+    components.ts      all rendering: calendar list, frequency chart, settings panel
   utils/
-    color-utils.js     stable course → color assignment
-    date-utils.js      date formatting helpers
+    color-utils.ts     stable course → color assignment
+    date-utils.ts      date formatting helpers
 styles/
   sidepanel.css        all CSS for the panel, scoped under :where(#d2l-todolist-widget)
 dist/                  build output — do not edit directly
-tests/                 Jest unit tests
+tests/                 Jest unit tests (currently disabled — pending TypeScript rewrite)
 ```
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for a deeper breakdown of how these pieces actually interact.
@@ -60,10 +61,15 @@ Two separate Vite configs, one per entry point:
 
 | Config | Input | Output | Format |
 |--------|-------|--------|--------|
-| `vite.content.config.js` | `src/content.js` | `dist/content.js` | IIFE |
-| `vite.background.config.js` | `src/background.js` | `dist/background.js` | ES module |
+| `vite.content.config.js` | `src/content.ts` | `dist/content.js` | IIFE |
+| `vite.background.config.js` | `src/background.ts` | `dist/background.js` | ES module |
 
 Both use `emptyOutDir: false` so they don't clobber each other.
+
+TypeScript is compiled to JavaScript by Vite's internal esbuild pipeline — `tsc` is not used for emit. To type-check without building:
+```bash
+./node_modules/.bin/tsc --noEmit
+```
 
 Content scripts must be IIFE because Chrome injects them as plain `<script>` tags with no module resolution. The service worker uses ES module because MV3 supports it natively and it's required for top-level `await`.
 
@@ -119,6 +125,6 @@ This runs `scripts/sync-version.js` which copies the version from `package.json`
 
 **CSS specificity trick.** All panel styles are scoped under `:where(#d2l-todolist-widget) *`. The `:where()` pseudo-class has zero specificity, which means D2L's own styles always win in a conflict. If you add a style and it's not showing up, check whether D2L is overriding it — you may need to be more specific inside the widget selector.
 
-**API version strings are constants.** D2L REST API endpoints embed a version like `/d2l/api/le/1.82/...`. These are defined as named constants in `brightspace.js` — don't inline new version numbers directly in endpoint strings.
+**API version strings are constants.** D2L REST API endpoints embed a version like `/d2l/api/le/1.82/...`. These are defined as named constants in `brightspace.ts` — don't inline new version numbers directly in endpoint strings.
 
 **The two bundles are independent.** Vite inlines a copy of any shared module (like `actions.js`) into each bundle separately. They share no runtime linkage. If you change `actions.js`, both bundles need to be rebuilt.
