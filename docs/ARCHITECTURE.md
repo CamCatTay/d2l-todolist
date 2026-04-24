@@ -173,7 +173,9 @@ If you add a style and it's not applying, the most common cause is a D2L style w
 
 ## Testing
 
-Tests live in `tests/` and are **currently disabled** pending a rewrite for TypeScript. The Jest config is inactive and `npm test` will print a notice rather than run any tests. The test files are kept in place for reference while the rewrite is in progress.
+Tests live in `tests/` and use [Vitest](https://vitest.dev/), which shares the same esbuild pipeline as the Vite build — TypeScript works with zero extra config. Run them with `npm test`.
+
+Each source module that needs test isolation exports a minimal testing seam (e.g. `_resetColorMap()` in `color-utils.ts`). Modules with top-level side effects (e.g. `background.ts`) are imported dynamically inside `beforeEach` via `vi.doMock` + `vi.resetModules` + `await import()` so each test starts with a fresh module instance.
 
 ---
 

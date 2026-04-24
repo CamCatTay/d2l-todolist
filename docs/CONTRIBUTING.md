@@ -24,7 +24,7 @@ To run tests:
 npm test
 ```
 
-> **Note:** Tests are currently disabled pending a rewrite for TypeScript. Running `npm test` will print a notice. The test files in `tests/` are kept for reference.
+> Tests use [Vitest](https://vitest.dev/) and run directly against TypeScript source with no extra compilation step.
 
 ---
 
@@ -48,7 +48,7 @@ src/
 styles/
   sidepanel.css        all CSS for the panel, scoped under :where(#d2l-todolist-widget)
 dist/                  build output — do not edit directly
-tests/                 Jest unit tests (currently disabled — pending TypeScript rewrite)
+tests/                 Vitest unit tests
 ```
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for a deeper breakdown of how these pieces actually interact.
