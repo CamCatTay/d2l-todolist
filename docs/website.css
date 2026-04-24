@@ -482,6 +482,145 @@ a {
     color: #1a1a1a;
 }
 
+/* ── Uninstall feedback page ─────────────────────────────── */
+.uninstall-faq-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: #f0f4ff;
+    border: 1px solid #d0dbff;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 32px;
+    font-size: 14px;
+    color: #333;
+    line-height: 1.65;
+}
+
+.uninstall-faq-tip-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    line-height: 1.5;
+}
+
+.uninstall-form {
+    margin-top: 4px;
+}
+
+.uninstall-options {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 20px;
+}
+
+.uninstall-options-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 10px;
+}
+
+.uninstall-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #333;
+    transition: background 0.12s, border-color 0.12s;
+    user-select: none;
+}
+
+.uninstall-option:hover {
+    background: #f7f7f7;
+    border-color: #ccc;
+}
+
+.uninstall-option input[type="radio"] {
+    accent-color: #1a1a1a;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.uninstall-option:has(input:checked) {
+    background: #f0f4ff;
+    border-color: #b0c0ff;
+}
+
+.uninstall-other-container {
+    margin-bottom: 20px;
+}
+
+.uninstall-textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #d8d8d8;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    color: #1a1a1a;
+    line-height: 1.6;
+    resize: vertical;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+}
+
+.uninstall-textarea:focus {
+    border-color: #1a1a1a;
+    box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.08);
+}
+
+.uninstall-error {
+    font-size: 13px;
+    color: #d93025;
+    margin-bottom: 16px;
+}
+
+.uninstall-submit {
+    margin-top: 4px;
+}
+
+.uninstall-success {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-top: 8px;
+    padding: 20px 22px;
+    background: #f0faf4;
+    border: 1px solid #b0dfc0;
+    border-radius: 10px;
+    font-size: 14px;
+    color: #1a4a28;
+    line-height: 1.65;
+}
+
+.uninstall-success strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 15px;
+}
+
+.uninstall-success-icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #2e7d52;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 600px) {
     .hero-title {
