@@ -4,9 +4,9 @@
 import { get_course_content } from "./api/brightspace";
 import { Action } from "./shared/actions";
 
-const SETTINGS_VALUE_KEY = "spark-user-settings";
-const D2L_URL_FILTER = "/d2l/";
-const FAQ_URL = "https://camcattay.github.io/spark-for-brightspace/faq.html";
+export const SETTINGS_VALUE_KEY = "spark-user-settings";
+export const D2L_URL_FILTER = "/d2l/";
+export const FAQ_URL = "https://camcattay.github.io/spark-for-brightspace/faq.html";
 const UNINSTALL_URL = "https://camcattay.github.io/spark-for-brightspace/uninstall.html";
 const SPARK_INITIALIZED_FLAG = "__spark_initialized__";
 const SESSION_WORKER_INITIALIZED_KEY = "worker_initialized";

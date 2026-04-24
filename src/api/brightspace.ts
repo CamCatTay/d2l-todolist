@@ -3,11 +3,11 @@
 
 import type { CourseShape } from "../shared/types";
 
-interface BrightspaceItem {
+export interface BrightspaceItem {
     OrgUnitId: number;
     ItemId: number;
     ItemName: string;
-    ItemType: number;
+    ItemType?: number;
     ItemUrl?: string;
     StartDate?: string | null;
     DueDate?: string | null;
@@ -16,7 +16,7 @@ interface BrightspaceItem {
     ActivityType: number;
 }
 
-interface BrightspaceCourseInfo {
+export interface BrightspaceCourseInfo {
     OrgUnit: { Id: number; Name: string; Type: { Id: number } };
     Access: { CanAccess: boolean; IsActive: boolean };
     HomeUrl: string;
@@ -66,7 +66,10 @@ interface PaginatedResponse<T> {
     Items: T[];
 }
 
-const ActivityType = Object.freeze({
+// Must match OrgUnit.Type.Id for a standard course section in the Brightspace API
+export const COURSE_ORG_UNIT_TYPE_ID = 3;
+
+export const ActivityType = Object.freeze({
     DROPBOX: 3,
     QUIZ: 4,
     DISCUSSION: 5
@@ -130,7 +133,7 @@ async function get_brightspace_quizzes(base_url: string, course_id: number): Pro
     return fetch_course_data(base_url, `/d2l/api/le/1.67/${course_id}/quizzes/`) as Promise<BrightspaceQuiz[]>;
 }
 
-async function get_quiz_attempt_count(base_url: string, quiz_id: number, org_id: number): Promise<number> {
+export async function get_quiz_attempt_count(base_url: string, quiz_id: number, org_id: number): Promise<number> {
     try {
         const url = `${base_url}/d2l/lms/quizzing/user/quiz_summary.d2l?qi=${quiz_id}&ou=${org_id}`;
         const response = await fetch(url, { credentials: 'include' });
@@ -159,7 +162,7 @@ async function get_brightspace_assignments(base_url: string, course_id: number):
     return fetch_course_data(base_url, `/d2l/api/le/1.82/${course_id}/dropbox/folders/`) as Promise<BrightspaceAssignment[]>;
 }
 
-async function get_assignment_submissions(base_url: string, course_id: number, assignment_id: number): Promise<BrightspaceSubmission[]> {
+export async function get_assignment_submissions(base_url: string, course_id: number, assignment_id: number): Promise<BrightspaceSubmission[]> {
     try {
         const submissions_url = base_url + `/d2l/api/le/1.82/${course_id}/dropbox/folders/${assignment_id}/submissions/`;
         const response = await fetch(submissions_url);
@@ -179,7 +182,7 @@ async function get_assignment_submissions(base_url: string, course_id: number, a
 
 // Fallback: scrape the submission history page and return a synthetic submissions
 // array with one entry if any submission rows (td.d_gn.d_gt) are found.
-async function get_assignment_submissions_from_history(base_url: string, course_id: number, assignment_id: number): Promise<BrightspaceSubmission[]> {
+export async function get_assignment_submissions_from_history(base_url: string, course_id: number, assignment_id: number): Promise<BrightspaceSubmission[]> {
     try {
         const history_url = base_url + `/d2l/lms/dropbox/user/folders_history.d2l?db=${assignment_id}&grpid=0&isprv=0&bp=0&ou=${course_id}`;
         const response = await fetch(history_url, { credentials: 'include' });
@@ -244,7 +247,7 @@ async function get_base_url(tab_url: string): Promise<string> {
     return url.protocol + "//" + url.host;
 }
 
-async function get_brightspace_data(url: string): Promise<unknown[]> {
+export async function get_brightspace_data(url: string): Promise<unknown[]> {
     const response = await fetch(url);
     const data = await response.json();
 
@@ -270,7 +273,7 @@ async function get_brightspace_data(url: string): Promise<unknown[]> {
     return data.Items || data.Object || data.Objects || [];
 }
 
-function clear_past_start_date(start_date: string | null | undefined): string | null {
+export function clear_past_start_date(start_date: string | null | undefined): string | null {
     if (!start_date) return null;
     const start_date_obj = new Date(start_date);
     const now = new Date();
@@ -283,11 +286,11 @@ async function get_brightspace_courses(base_url: string): Promise<BrightspaceCou
     const courses_url = base_url + "/d2l/api/lp/1.43/enrollments/myenrollments/";
     const all_courses = await get_brightspace_data(courses_url);
     return (all_courses as BrightspaceCourseInfo[]).filter(function(course) {
-        return course.Access.CanAccess && course.Access.IsActive && course.OrgUnit.Type.Id === 3;
+        return course.Access.CanAccess && course.Access.IsActive && course.OrgUnit.Type.Id === COURSE_ORG_UNIT_TYPE_ID;
     });
 }
 
-async function build_course_data(all_courses: BrightspaceCourseInfo[], all_items: BrightspaceItem[]): Promise<Record<string, Course>> {
+export async function build_course_data(all_courses: BrightspaceCourseInfo[], all_items: BrightspaceItem[]): Promise<Record<string, Course>> {
     const course_data: Record<string, Course> = {};
 
     // Iterate through courses and convert them into Course objects

@@ -35,3 +35,8 @@ export function ensureCourseColorsAssigned(courseData: Record<string, { name: st
 export function getCourseColor(courseName: string): string {
     return courseColorMap[courseName] || "#808080";
 }
+
+// Resets the internal color map — only used in tests to ensure isolation between test cases.
+export function _resetColorMap(): void {
+    courseColorMap = {};
+}
