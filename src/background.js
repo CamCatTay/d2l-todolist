@@ -7,8 +7,11 @@ import { Action } from "./shared/actions";
 const SETTINGS_VALUE_KEY = "spark-user-settings";
 const D2L_URL_FILTER = "/d2l/";
 const FAQ_URL = "https://camcattay.github.io/spark-for-brightspace/faq.html";
+const UNINSTALL_URL = "https://camcattay.github.io/spark-for-brightspace/uninstall.html";
 const SPARK_INITIALIZED_FLAG = "__spark_initialized__";
 const SESSION_WORKER_INITIALIZED_KEY = "worker_initialized";
+
+chrome.runtime.setUninstallURL(UNINSTALL_URL);
 
 function broadcast_to_d2l_tabs(sender_tab_id, message) {
     chrome.tabs.query({}, function(tabs) {
@@ -94,6 +97,7 @@ if (typeof module !== 'undefined' && module.exports) {
         SETTINGS_VALUE_KEY,
         D2L_URL_FILTER,
         FAQ_URL,
+        UNINSTALL_URL,
         SPARK_INITIALIZED_FLAG,
         SESSION_WORKER_INITIALIZED_KEY,
     };

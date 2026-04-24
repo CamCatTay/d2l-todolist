@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-52QYCT9NQJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-52QYCT9NQJ');
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="images/spark_logo.png">
+    <link rel="stylesheet" href="website.css">
+    <title>Spark for Brightspace — Uninstalled</title>
+  </head>
+
+  <body>
+
+    <!-- ── Navigation ──────────────────────────────────────── -->
+    <nav class="site-nav">
+      <div class="container">
+        <a class="nav-brand" href="index.html">
+          <img class="nav-logo" src="images/spark_logo.png" alt="Spark logo">
+          Spark for Brightspace
+        </a>
+        <ul class="nav-links">
+          <li><a href="index.html#features">Features</a></li>
+          <li><a href="index.html#install">Install</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+          <li><a href="privacy-policy.html">Privacy Policy</a></li>
+          <li>
+            <a
+              class="btn-nav"
+              href="https://github.com/CamCatTay/spark-for-brightspace"
+              target="_blank"
+              rel="noopener noreferrer"
+            >GitHub</a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <!-- ── Page content ────────────────────────────────────── -->
+    <div class="policy-page">
+
+      <header class="policy-header">
+        <img class="policy-logo" src="images/spark_logo.png" alt="Spark logo">
+        <div>
+          <h1 class="policy-title">Sorry to see you go!</h1>
+          <p class="policy-subtitle">Spark for Brightspace has been uninstalled</p>
+        </div>
+      </header>
+
+      <!-- ── FAQ tip ─────────────────────────────────────── -->
+      <div class="uninstall-faq-tip">
+        <span class="uninstall-faq-tip-icon">💡</span>
+        <p>
+          <strong>Having issues?</strong> Before walking away, check out the
+          <a class="policy-link" href="faq.html">FAQ</a> — many common problems have quick fixes.
+          You can always <a class="policy-link" href="index.html#install">reinstall</a> at any time.
+        </p>
+      </div>
+
+      <!-- ── Feedback form ───────────────────────────────── -->
+      <section class="policy-section">
+        <h2 class="policy-section-title">Help us improve</h2>
+        <p class="policy-body">
+          We'd love to know why you uninstalled. Your feedback directly shapes what we work on next.
+        </p>
+
+        <form id="uninstall-form" class="uninstall-form" novalidate>
+
+          <div class="uninstall-options" role="group" aria-labelledby="reason-group-label">
+            <p id="reason-group-label" class="uninstall-options-label">What was your main reason?</p>
+
+            <label class="uninstall-option">
+              <input type="radio" name="reason" value="no_longer_using_brightspace">
+              <span>I'm no longer using Brightspace</span>
+            </label>
+
+            <label class="uninstall-option">
+              <input type="radio" name="reason" value="not_working">
+              <span>The extension wasn't working properly</span>
+            </label>
+
+            <label class="uninstall-option">
+              <input type="radio" name="reason" value="missing_features">
+              <span>It was missing features I needed</span>
+            </label>
+
+            <label class="uninstall-option">
+              <input type="radio" name="reason" value="found_alternative">
+              <span>I found a better alternative</span>
+            </label>
+
+            <label class="uninstall-option">
+              <input type="radio" name="reason" value="privacy_concerns">
+              <span>I had privacy or permissions concerns</span>
+            </label>
+
+            <label class="uninstall-option">
+              <input type="radio" name="reason" value="just_testing">
+              <span>I was just trying it out</span>
+            </label>
+
+            <label class="uninstall-option">
+              <input type="radio" name="reason" value="other">
+              <span>Other</span>
+            </label>
+          </div>
+
+          <div id="other-container" class="uninstall-other-container" hidden>
+            <textarea
+              id="other-text"
+              class="uninstall-textarea"
+              placeholder="Tell us more..."
+              rows="4"
+              maxlength="500"
+              aria-label="Other reason"
+            ></textarea>
+          </div>
+
+          <p id="form-error" class="uninstall-error" hidden>
+            Please select a reason before submitting.
+          </p>
+
+          <button type="submit" class="btn-primary uninstall-submit">
+            Submit Feedback
+          </button>
+
+        </form>
+
+        <div id="success-message" class="uninstall-success" hidden>
+          <span class="uninstall-success-icon">✓</span>
+          <div>
+            <strong>Thank you for your feedback!</strong>
+            <p>Your response has been recorded. We hope to see you again.</p>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+
+    <script>
+      // URL of the deployed Google Apps Script web app (see scripts/uninstall-feedback.gs)
+      const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwegH6g9M9xqZo0c2q4PJuvevFSmpg39k4TQsVTpX_tm0Bcsx2BGwwmyEdTPz9_y1eF/exec";
+
+      const REASON_OTHER = "other";
+      const MAX_OTHER_LENGTH = 500;
+
+      const form_el = document.getElementById("uninstall-form");
+      const other_container_el = document.getElementById("other-container");
+      const other_text_el = document.getElementById("other-text");
+      const form_error_el = document.getElementById("form-error");
+      const success_el = document.getElementById("success-message");
+
+      // Show or hide the "Other" textarea based on the selected radio
+      form_el.addEventListener("change", function(e) {
+        if (e.target.name !== "reason") return;
+        other_container_el.hidden = e.target.value !== REASON_OTHER;
+        form_error_el.hidden = true;
+      });
+
+      form_el.addEventListener("submit", function(e) {
+        e.preventDefault();
+
+        const selected_radio = form_el.querySelector("input[name='reason']:checked");
+        if (!selected_radio) {
+          form_error_el.hidden = false;
+          return;
+        }
+
+        const payload = {
+          reason: selected_radio.value,
+          other_text: selected_radio.value === REASON_OTHER
+            ? other_text_el.value.trim().slice(0, MAX_OTHER_LENGTH)
+            : "",
+          timestamp: new Date().toISOString(),
+        };
+
+        // Submit feedback. no-cors avoids preflight issues with Apps Script redirects;
+        // the response is opaque so we optimistically show success regardless.
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify(payload),
+        }).catch(function() {
+          // Feedback is best-effort — silently swallow network errors
+        });
+
+        form_el.hidden = true;
+        success_el.hidden = false;
+      });
+    </script>
+
+  </body>
+</html>
