@@ -47,6 +47,7 @@ const ITEM_TYPES = [
 // Synced across tabs via chrome.storage.local + broadcast:
 const CALENDAR_START_DAYS_BACK_STORAGE_KEY = "d2l-todolist-calendar-start-days-back";
 const SHOW_COMPLETED_STORAGE_KEY = "d2l-todolist-show-completed";
+const SHOW_ON_START_STORAGE_KEY = "spark-setting-show-on-start"
 // Tab-local, session-scoped (sessionStorage — NOT synced across tabs):
 const HIDDEN_COURSES_SESSION_KEY = "spark-hidden-courses";
 const HIDDEN_TYPES_SESSION_KEY = "spark-hidden-types";
@@ -65,7 +66,7 @@ if (!Number.isFinite(CALENDAR_START_DAYS_BACK) || CALENDAR_START_DAYS_BACK < 0) 
 
 // Default true: show completed items unless the user has explicitly turned it off.
 let show_completed_items = localStorage.getItem(SHOW_COMPLETED_STORAGE_KEY) !== "false";
-let hide_on_start = false;
+let show_on_start = localStorage.getItem(SHOW_ON_START_STORAGE_KEY) !== "false";
 
 function truncate_course_name(name: string): string {
     if (!name) return name;
@@ -759,18 +760,18 @@ export function build_settings_panel() {
     );
     body.appendChild(show_complete_items_setting.section);
 
-    const show_on_start = create_toggle_setting(
+    const show_on_start_setting = create_toggle_setting(
         "Show on start",
         "When off, the side panel will start hidden in new tabs.",
         true,
         (checked) => {
-            show_completed_items = show_on_start.checkbox.checked;
+            show_on_start = show_on_start_setting.checkbox.checked;
             localStorage.setItem(SHOW_COMPLETED_STORAGE_KEY, show_completed_items.toString());
             safe_send_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: get_synced_settings() });
             if (_on_rerender) _on_rerender();
         }
     );
-    body.appendChild(show_on_start.section);
+    body.appendChild(show_on_start_setting.section);
 
     // Assignment types section
     const types_section = document.createElement("div");
