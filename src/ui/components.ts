@@ -759,6 +759,19 @@ export function build_settings_panel() {
     );
     body.appendChild(show_complete_items_setting.section);
 
+    const show_on_start = create_toggle_setting(
+        "Show on start",
+        "When off, the side panel will start hidden in new tabs.",
+        true,
+        (checked) => {
+            show_completed_items = show_on_start.checkbox.checked;
+            localStorage.setItem(SHOW_COMPLETED_STORAGE_KEY, show_completed_items.toString());
+            safe_send_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: get_synced_settings() });
+            if (_on_rerender) _on_rerender();
+        }
+    );
+    body.appendChild(show_on_start.section);
+
     // Assignment types section
     const types_section = document.createElement("div");
     types_section.className = "settings-section";
