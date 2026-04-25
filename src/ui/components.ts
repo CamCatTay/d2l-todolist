@@ -13,7 +13,7 @@ import type { CourseData, CourseShape, ItemShape } from "../shared/types";
 interface FrequencyChartContainer extends HTMLDivElement {
     _todayWeekStart: number;
     _weekOffset: number;
-    _calendarContainer: HTMLElement;
+    _calendar_container: HTMLElement;
 }
 
 const COURSE_NAME_TRIM_WORDS = [
@@ -28,6 +28,7 @@ const COURSE_NAME_TRIM_WORDS = [
 
 const DAYS_IN_WEEK = 7;
 const CALENDAR_DAYS_BACK_DEFAULT = 7;
+const SETTINGS_MIN_DAYS_BACK = 0;
 const SETTINGS_MAX_DAYS_BACK = 365;
 
 const SHOW_LAST_FETCHED = true; // Show last fetched time stamp
@@ -58,11 +59,20 @@ let _on_rerender: (() => void) | null = null;
 
 let _last_course_data: CourseData = {};
 let last_fetched_time: Date | null = null;
-let hidden_course_ids = new Set<string>(JSON.parse(sessionStorage.getItem(HIDDEN_COURSES_SESSION_KEY) || "[]"));
-let hidden_types = new Set<string>(JSON.parse(sessionStorage.getItem(HIDDEN_TYPES_SESSION_KEY) || "[]"));
+// Safely reads a string array from sessionStorage, returning an empty set on any parse failure.
+function read_session_set(key: string): Set<string> {
+    try {
+        return new Set<string>(JSON.parse(sessionStorage.getItem(key) || "[]"));
+    } catch {
+        return new Set<string>();
+    }
+}
 
-let CALENDAR_START_DAYS_BACK = parseInt(localStorage.getItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY) ?? "7", 10);
-if (!Number.isFinite(CALENDAR_START_DAYS_BACK) || CALENDAR_START_DAYS_BACK < 0) CALENDAR_START_DAYS_BACK = 7;
+let hidden_course_ids = read_session_set(HIDDEN_COURSES_SESSION_KEY);
+let hidden_types = read_session_set(HIDDEN_TYPES_SESSION_KEY);
+
+let CALENDAR_START_DAYS_BACK = parseInt(localStorage.getItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY) ?? String(CALENDAR_DAYS_BACK_DEFAULT), 10);
+if (!Number.isFinite(CALENDAR_START_DAYS_BACK) || CALENDAR_START_DAYS_BACK < 0) CALENDAR_START_DAYS_BACK = CALENDAR_DAYS_BACK_DEFAULT;
 
 // Default true: show completed items unless the user has explicitly turned it off.
 let show_completed_items = localStorage.getItem(SHOW_COMPLETED_STORAGE_KEY) !== "false";
@@ -238,6 +248,51 @@ export function add_data_status_indicator(is_stale: boolean): void {
     }
 }
 
+interface DateIndexedItems {
+    items_by_date: Record<string, Array<{ item: ItemShape; course: CourseShape }>>;
+    min_date: Date | null;
+    max_date: Date | null;
+}
+
+// Indexes all visible items by ISO date string, respecting hidden courses, hidden types,
+// and the show_completed_items setting. Returns the indexed map and the date range.
+function collect_items_by_date(course_data: CourseData): DateIndexedItems {
+    const items_by_date: Record<string, Array<{ item: ItemShape; course: CourseShape }>> = {};
+    let min_date: Date | null = null;
+    let max_date: Date | null = null;
+
+    Object.keys(course_data).forEach((course_id) => {
+        const course = course_data[course_id];
+        if (hidden_course_ids.has(course_id)) return;
+
+        const item_collections = [
+            { items: course.assignments, type: "assignments" },
+            { items: course.quizzes, type: "quizzes" },
+            { items: course.discussions, type: "discussions" },
+        ];
+
+        item_collections.forEach(({ items, type }) => {
+            if (hidden_types.has(type)) return;
+            if (!items) return;
+            Object.keys(items).forEach((item_id) => {
+                const item = items[item_id];
+                if (!item.due_date || (item.completed && !show_completed_items)) return;
+                const date_only = getDateOnly(item.due_date);
+                if (!date_only) return;
+                const date_key = date_only.toISOString().split("T")[0];
+                if (!items_by_date[date_key]) {
+                    items_by_date[date_key] = [];
+                }
+                items_by_date[date_key].push({ item, course });
+                if (!min_date || date_only < min_date) min_date = date_only;
+                if (!max_date || date_only > max_date) max_date = date_only;
+            });
+        });
+    });
+
+    return { items_by_date, min_date, max_date };
+}
+
 export function update_gui(course_data: CourseData, is_from_cache: boolean = false): void {
     const calendar_container = document.getElementById("calendar-container");
     if (!calendar_container) return;
@@ -251,50 +306,11 @@ export function update_gui(course_data: CourseData, is_from_cache: boolean = fal
 
     calendar_container.innerHTML = "";
 
-    // Collect all items with due dates
-    const items_by_date: Record<string, Array<{ item: ItemShape; course: CourseShape }>> = {};
-    let min_date: Date | null = null;
-    let max_date: Date | null = null;
-
-    Object.keys(course_data).forEach((course_id) => {
-        const course = course_data[course_id];
-
-        if (hidden_course_ids.has(course_id)) return;
-
-        const item_collections = [
-            { items: course.assignments, type: "assignments", show_completed: show_completed_items },
-            { items: course.quizzes, type: "quizzes", show_completed: show_completed_items },
-            { items: course.discussions, type: "discussions", show_completed: show_completed_items }
-        ];
-
-        item_collections.forEach(({ items, type, show_completed }) => {
-            if (hidden_types.has(type)) return;
-            if (items) {
-                Object.keys(items).forEach((item_id) => {
-                    const item = items[item_id];
-                    if (item.due_date && (!item.completed || show_completed)) {
-                        const date_only = getDateOnly(item.due_date);
-                        if (date_only) {
-                            const date_key = date_only.toISOString().split("T")[0];
-                            if (!items_by_date[date_key]) {
-                                items_by_date[date_key] = [];
-                            }
-                            items_by_date[date_key].push({ item, course });
-
-                            if (!min_date || date_only < min_date) min_date = date_only;
-                            if (!max_date || date_only > max_date) max_date = date_only;
-                        }
-                    }
-                });
-            }
-        });
-    });
+    const { items_by_date, min_date, max_date } = collect_items_by_date(course_data);
 
     // Always create frequency chart (contains settings, refresh, and FAQ buttons)
     try {
-        if (typeof create_frequency_chart === "function" && typeof getWeekStart === "function" && typeof getDateKey === "function") {
-            create_frequency_chart(calendar_container, items_by_date, preserved_week_offset);
-        }
+        create_frequency_chart(calendar_container, items_by_date, preserved_week_offset);
     } catch (e) {
         console.error("Error creating frequency chart (non-fatal):", e);
     }
@@ -352,8 +368,8 @@ export function update_gui(course_data: CourseData, is_from_cache: boolean = fal
     create_scrollbar_indicator(calendar_container);
 }
 
-export function set_last_fetched_time(t: Date): void {
-    last_fetched_time = t;
+export function set_last_fetched_time(fetch_time: Date): void {
+    last_fetched_time = fetch_time;
 }
 
 function create_frequency_chart(calendar_container: HTMLElement, items_by_date: Record<string, Array<{ item: ItemShape; course: CourseShape }>>, initial_week_offset: number = 0): void {
@@ -369,7 +385,7 @@ function create_frequency_chart(calendar_container: HTMLElement, items_by_date: 
     // Store current week and offset
     chart_container._todayWeekStart = today_week_start.getTime();
     chart_container._weekOffset = initial_week_offset;
-    chart_container._calendarContainer = calendar_container; // Store for click-to-scroll
+    chart_container._calendar_container = calendar_container; // Store for click-to-scroll
 
     const prev_btn = document.createElement("button");
     prev_btn.className = "frequency-chart-btn";
@@ -508,7 +524,7 @@ function render_frequency_chart(chart_container: FrequencyChartContainer, items_
         if (!grid) return; // Safety check
 
         grid.innerHTML = "";
-        if (!calendar_container) calendar_container = chart_container._calendarContainer; // Fallback
+        if (!calendar_container) calendar_container = chart_container._calendar_container; // Fallback
 
         // Calculate the week to display - convert timestamp back to Date if needed
         let display_week_start;
@@ -730,11 +746,11 @@ export function build_settings_panel() {
     input.type = "number";
     input.id = "spark-setting-days-back";
     input.className = "settings-input";
-    input.min = "0";
-    input.max = "365";
+    input.min = SETTINGS_MIN_DAYS_BACK.toString();
+    input.max = SETTINGS_MAX_DAYS_BACK.toString();
     input.value = CALENDAR_START_DAYS_BACK.toString();
     input.addEventListener("change", () => {
-        const val = Math.max(0, Math.min(SETTINGS_MAX_DAYS_BACK, parseInt(input.value, 10) || 0));
+        const val = Math.max(SETTINGS_MIN_DAYS_BACK, Math.min(SETTINGS_MAX_DAYS_BACK, parseInt(input.value, 10) || 0));
         input.value = val.toString();
         CALENDAR_START_DAYS_BACK = val;
         localStorage.setItem(CALENDAR_START_DAYS_BACK_STORAGE_KEY, val.toString());
@@ -752,7 +768,7 @@ export function build_settings_panel() {
         "When off, only incomplete items are shown in the calendar.",
         show_completed_items,
         (checked) => {
-            show_completed_items = show_complete_items_setting.checkbox.checked;
+            show_completed_items = checked;
             localStorage.setItem(SHOW_COMPLETED_STORAGE_KEY, show_completed_items.toString());
             safe_send_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: get_synced_settings() });
             if (_on_rerender) _on_rerender();
@@ -763,10 +779,10 @@ export function build_settings_panel() {
     const show_on_start_setting = create_toggle_setting(
         "Show on start",
         "When off, the side panel will start hidden in new tabs.",
-        true,
+        show_on_start,
         (checked) => {
-            show_on_start = show_on_start_setting.checkbox.checked;
-            localStorage.setItem(SHOW_COMPLETED_STORAGE_KEY, show_completed_items.toString());
+            show_on_start = checked;
+            localStorage.setItem(SHOW_ON_START_STORAGE_KEY, checked.toString());
             safe_send_message({ action: Action.BROADCAST_SETTINGS_CHANGED, settings: get_synced_settings() });
             if (_on_rerender) _on_rerender();
         }
