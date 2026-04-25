@@ -2,6 +2,7 @@
 // scroll persistence, and rendering course content into the panel.
 
 import { Action } from "../shared/actions";
+import { ui_state } from "./ui-state";
 
 // Registered by content.ts to avoid a circular import between panel and settings-menu.
 let _build_settings_panel: (() => HTMLElement) | null = null;
@@ -297,7 +298,10 @@ export function inject_embedded_ui() {
     // auto-open the settings panel on a fresh load.
     chrome.storage.local.remove("spark-settings-open");
 
-    const should_show_panel = sessionStorage.getItem(EXPANSION_STATE_KEY) === "true";
+    // Null means no saved state this session (fresh tab). In that case, honour show_on_start.
+    // "true" / "false" means the user already toggled the panel this session — respect that.
+    const expansion_state = sessionStorage.getItem(EXPANSION_STATE_KEY);
+    const should_show_panel = expansion_state === "true" || (expansion_state === null && ui_state.show_on_start);
 
     if (should_show_panel) {
         toggle_btn.style.right = panel_width + "px";
