@@ -83,7 +83,6 @@ function on_page_ready() {
     calendar_container.addEventListener("scroll", () => {
         clearTimeout(scroll_save_timer);
         scroll_save_timer = setTimeout(() => {
-            console.log(calendar_container.scrollTop.toString());
             sessionStorage.setItem(SCROLL_POS_SESSION_KEY, calendar_container.scrollTop.toString());
         }, 300);
     });
