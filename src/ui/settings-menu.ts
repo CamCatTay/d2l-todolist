@@ -4,7 +4,7 @@
 import { Action } from "../shared/actions";
 import { getCourseColor } from "../utils/color-utils";
 import { safe_send_message } from "./panel";
-import { create_toggle_setting } from "./settings-menu-utils";
+import { create_toggle_setting } from "../utils/settings-menu-utils";
 import {
     ui_state,
     truncate_course_name,
