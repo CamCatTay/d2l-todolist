@@ -17,8 +17,10 @@ import {
     apply_settings,
     set_last_fetched_time,
     register_ui_callbacks,
-    scroll_to_today,
-} from "./ui/components";
+} from "./ui/calendar";
+import { scroll_to_today } from "./ui/frequency-chart";
+import { register_settings_panel_builder } from "./ui/panel";
+import { build_settings_panel } from "./ui/settings-menu";
 
 import type { CourseData } from "./shared/types";
 
@@ -68,6 +70,7 @@ function on_page_interaction() {
 
 function on_page_ready() {
     (window as unknown as { [key: string]: unknown })[SPARK_INITIALIZED_FLAG] = true;
+    register_settings_panel_builder(build_settings_panel);
     let course_data: CourseData = {};
 
     const calendar_container = inject_embedded_ui();
@@ -164,7 +167,7 @@ function on_page_ready() {
         }
     };
 
-    // Register refresh/re-render callbacks so the settings UI in components.js can trigger them
+    // Register refresh/re-render callbacks so the settings UI can trigger them
     register_ui_callbacks({ on_refresh: trigger_refresh, on_rerender: trigger_rerender });
 
     // Restore scroll position whenever the panel is opened (including first open on a new tab).

@@ -2,7 +2,13 @@
 // scroll persistence, and rendering course content into the panel.
 
 import { Action } from "../shared/actions";
-import { build_settings_panel } from "./components";
+
+// Registered by content.ts to avoid a circular import between panel and settings-menu.
+let _build_settings_panel: (() => HTMLElement) | null = null;
+
+export function register_settings_panel_builder(fn: () => HTMLElement): void {
+    _build_settings_panel = fn;
+}
 
 const EXPANSION_STATE_KEY = "d2l-todolist-expanded";
 const PANEL_WIDTH_KEY = "d2l-todolist-width";
@@ -242,7 +248,8 @@ export function toggle_panel(): void {
             setTimeout(() => {
                 let sp = document.getElementById("spark-settings-panel");
                 if (!sp) {
-                    sp = build_settings_panel();
+                    if (!_build_settings_panel) return;
+                    sp = _build_settings_panel();
                     document.body.appendChild(sp);
                 }
                 sp.style.right = panel_width + "px";
