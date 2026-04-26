@@ -12,7 +12,6 @@ export function register_settings_panel_builder(fn: () => HTMLElement): void {
 const EXPANSION_STATE_KEY = "spark-expanded";
 const PANEL_WIDTH_KEY = "spark-width";
 const TOGGLE_BTN_TOP_KEY = "spark-toggle-btn-top";
-const SETTINGS_PANEL_OPEN_CLASS = SettingsCss.OPEN;
 
 const DEFAULT_PANEL_WIDTH = 400;
 const MIN_PANEL_WIDTH = 250;
@@ -218,11 +217,11 @@ function hide_panel_immediately(): void {
 
 function close_panel(): void {
     const settings_panel = document.getElementById(SettingsCss.PANEL_ID);
-    const is_settings_open = settings_panel && settings_panel.classList.contains(SETTINGS_PANEL_OPEN_CLASS);
+    const is_settings_open = settings_panel && settings_panel.classList.contains(SettingsCss.OPEN);
 
     if (is_settings_open) {
         settings_was_open = true;
-        settings_panel.classList.remove(SETTINGS_PANEL_OPEN_CLASS);
+        settings_panel.classList.remove(SettingsCss.OPEN);
         setTimeout(hide_panel_immediately, SETTINGS_TRANSITION_MS);
     } else {
         settings_was_open = false;
@@ -239,7 +238,7 @@ function reopen_settings_after_panel_slides_in(): void {
         document.body.appendChild(settings_panel);
     }
     settings_panel.style.right = panel_width + "px";
-    settings_panel.classList.add(SETTINGS_PANEL_OPEN_CLASS);
+    settings_panel.classList.add(SettingsCss.OPEN);
     if (panel_open_callback) panel_open_callback();
     setTimeout(() => { panel_is_animating = false; }, SETTINGS_TRANSITION_MS);
 }

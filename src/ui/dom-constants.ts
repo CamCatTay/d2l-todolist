@@ -12,7 +12,7 @@ export const SettingsCss = Object.freeze({
     DESCRIPTION: "settings-description",
     INPUT: "settings-input",
     LABEL: "settings-label",
-    OPEN: "spark-settings-open",
+    OPEN: "open",
     PANEL_HEADER: "settings-header",
     PANEL_ID: "spark-settings-panel",
     PANEL_TITLE: "settings-title",
