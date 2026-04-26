@@ -1,17 +1,13 @@
-// Assigns and retrieves consistent hex colors for courses using a fixed color pool.
-
-// Color pool as direct hex values for easy fine-tuning
 export const COLOR_POOL = [
-    "#e05555",  // Red
-    "#e07c2e",  // Orange
-    "#c9a800",  // Yellow
-    "#3aaa4e",  // Green
-    "#4a6ee0",  // Blue
-    "#d94f9e",  // Pink
-    "#8c52d4",  // Purple
+    "#e05555",
+    "#e07c2e",
+    "#c9a800",
+    "#3aaa4e",
+    "#4a6ee0",
+    "#d94f9e",
+    "#8c52d4",
 ];
 
-// { courseName: colorHex } - assigned lexicographically
 let courseColorMap: Record<string, string> = {};
 
 export function getColorFromPool(index: number): string {
