@@ -4,7 +4,7 @@ All notable changes to Spark for Brightspace are documented here.
 
 ---
 
-## [Unreleased]
+## [1.3.0] - 2026-04-26
 
 ### Added
 
