@@ -1,5 +1,3 @@
-// Date formatting and comparison helpers used across the UI layer.
-
 export function formatTimeFromDate(dateString: string | null | undefined): string {
     if (!dateString) return "No time";
     try {
