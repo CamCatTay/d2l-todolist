@@ -54,6 +54,11 @@ export const FrequencyChartCss = Object.freeze({
     DAY_COUNT: "frequency-day-count",
 });
 
+export const BrightspaceHtml = Object.freeze({
+    QUIZ_SUMMARY_ELEMENT_ID: "z_l",
+    SUBMISSION_ROW_CLASS: "d_gn d_gt",
+});
+
 export const CalendarCss = Object.freeze({
     DATE_HEADER: "calendar-date-header",
     DATE_TITLE: "date-title",

@@ -2,6 +2,7 @@
 // structured Course and Item objects consumed by the UI.
 
 import type { CourseShape } from "../shared/types";
+import { BrightspaceHtml } from "../ui/dom-constants";
 
 export interface BrightspaceItem {
     OrgUnitId: number;
@@ -22,7 +23,7 @@ export interface BrightspaceCourseInfo {
     HomeUrl: string;
 }
 
-interface BrightspaceQuiz {
+export interface BrightspaceQuiz {
     QuizId: number;
     Name: string;
     DueDate?: string | null;
@@ -30,11 +31,18 @@ interface BrightspaceQuiz {
     start_date?: string | null;
 }
 
-interface BrightspaceAssignment {
+export interface BrightspaceAssignment {
     Id: number;
     Name: string;
     DueDate?: string | null;
     Availability?: { EndDate?: string | null; start_date?: string | null };
+}
+
+export interface BrightspaceDiscussionTopic {
+    TopicId: number;
+    Name: string;
+    EndDate?: string | null;
+    start_date?: string | null;
 }
 
 interface BrightspaceSubmission {
@@ -43,13 +51,6 @@ interface BrightspaceSubmission {
 
 interface BrightspaceDiscussionForum {
     ForumId: number;
-}
-
-interface BrightspaceDiscussionTopic {
-    TopicId: number;
-    Name: string;
-    EndDate?: string | null;
-    start_date?: string | null;
 }
 
 interface BrightspacePost {
@@ -74,6 +75,14 @@ export const ActivityType = Object.freeze({
     QUIZ: 4,
     DISCUSSION: 5
 });
+
+const ApiVersion = Object.freeze({
+    LP_ENROLLMENTS: "1.43",
+    LP_WHOAMI: "1.49",
+    LE_QUIZZES: "1.67",
+    LE: "1.82",
+});
+
 class Course {
     id: number;
     name: string;
@@ -119,9 +128,9 @@ class Item {
     }
 }
 
-async function fetch_course_data(base_url: string, endpoint: string): Promise<unknown[]> {
+async function fetch_api_endpoint(base_url: string, endpoint: string): Promise<unknown[]> {
     try {
-        const data = await get_brightspace_data(base_url + endpoint);
+        const data = await fetch_paged_api_data(base_url + endpoint);
         return Array.isArray(data) ? data : [];
     } catch (error) {
         console.warn(`Failed to fetch ${endpoint}:`, error);
@@ -129,25 +138,24 @@ async function fetch_course_data(base_url: string, endpoint: string): Promise<un
     }
 }
 
-async function get_brightspace_quizzes(base_url: string, course_id: number): Promise<BrightspaceQuiz[]> {
-    return fetch_course_data(base_url, `/d2l/api/le/1.67/${course_id}/quizzes/`) as Promise<BrightspaceQuiz[]>;
+async function fetch_quizzes(base_url: string, course_id: number): Promise<BrightspaceQuiz[]> {
+    return fetch_api_endpoint(base_url, `/d2l/api/le/${ApiVersion.LE_QUIZZES}/${course_id}/quizzes/`) as Promise<BrightspaceQuiz[]>;
 }
 
 export async function get_quiz_attempt_count(base_url: string, quiz_id: number, org_id: number): Promise<number> {
     try {
         const url = `${base_url}/d2l/lms/quizzing/user/quiz_summary.d2l?qi=${quiz_id}&ou=${org_id}`;
-        const response = await fetch(url, { credentials: 'include' });
+        const response = await fetch(url, { credentials: "include" });
         if (!response.ok) return 0;
         const html = await response.text();
 
-        // Primary: extract inline text content of the element with id="z_l"
-        const zl_element_match = html.match(/id=["']z_l["'][^>]*>([^<]*)/);
-        if (zl_element_match) {
-            const completed_match = zl_element_match[1].match(/Completed\s*-\s*(\d+)/);
+        const element_id_pattern = new RegExp(`id=["']${BrightspaceHtml.QUIZ_SUMMARY_ELEMENT_ID}["'][^>]*>([^<]*)`);
+        const element_match = html.match(element_id_pattern);
+        if (element_match) {
+            const completed_match = element_match[1].match(/Completed\s*-\s*(\d+)/);
             if (completed_match) return parseInt(completed_match[1], 10);
         }
 
-        // Fallback: match "Completed - <N>" anywhere in the page body
         const fallback_match = html.match(/Completed\s*-\s*(\d+)/);
         if (fallback_match) return parseInt(fallback_match[1], 10);
 
@@ -158,17 +166,16 @@ export async function get_quiz_attempt_count(base_url: string, quiz_id: number, 
     }
 }
 
-async function get_brightspace_assignments(base_url: string, course_id: number): Promise<BrightspaceAssignment[]> {
-    return fetch_course_data(base_url, `/d2l/api/le/1.82/${course_id}/dropbox/folders/`) as Promise<BrightspaceAssignment[]>;
+async function fetch_assignments(base_url: string, course_id: number): Promise<BrightspaceAssignment[]> {
+    return fetch_api_endpoint(base_url, `/d2l/api/le/${ApiVersion.LE}/${course_id}/dropbox/folders/`) as Promise<BrightspaceAssignment[]>;
 }
 
 export async function get_assignment_submissions(base_url: string, course_id: number, assignment_id: number): Promise<BrightspaceSubmission[]> {
     try {
-        const submissions_url = base_url + `/d2l/api/le/1.82/${course_id}/dropbox/folders/${assignment_id}/submissions/`;
+        const submissions_url = `${base_url}/d2l/api/le/${ApiVersion.LE}/${course_id}/dropbox/folders/${assignment_id}/submissions/`;
         const response = await fetch(submissions_url);
         const data = await response.json();
 
-        // API returned an error object (e.g. folder closed by professor)
         if (!Array.isArray(data) && data.Errors) {
             return await get_assignment_submissions_from_history(base_url, course_id, assignment_id);
         }
@@ -180,27 +187,26 @@ export async function get_assignment_submissions(base_url: string, course_id: nu
     }
 }
 
-// Fallback: scrape the submission history page and return a synthetic submissions
-// array with one entry if any submission rows (td.d_gn.d_gt) are found.
+// Fallback for when the submissions endpoint is closed: scrapes the submission
+// history page and returns a synthetic entry if any submission rows are found.
 export async function get_assignment_submissions_from_history(base_url: string, course_id: number, assignment_id: number): Promise<BrightspaceSubmission[]> {
     try {
-        const history_url = base_url + `/d2l/lms/dropbox/user/folders_history.d2l?db=${assignment_id}&grpid=0&isprv=0&bp=0&ou=${course_id}`;
-        const response = await fetch(history_url, { credentials: 'include' });
+        const history_url = `${base_url}/d2l/lms/dropbox/user/folders_history.d2l?db=${assignment_id}&grpid=0&isprv=0&bp=0&ou=${course_id}`;
+        const response = await fetch(history_url, { credentials: "include" });
         if (!response.ok) return [];
         const html = await response.text();
-        // If the history table has at least one data row the user submitted
-        const has_submission = html.includes('class="d_gn d_gt"');
-        return has_submission ? [{ Submissions: [{ Id: 'history' }] }] : [];
+        const has_submission = html.includes(`class="${BrightspaceHtml.SUBMISSION_ROW_CLASS}"`);
+        return has_submission ? [{ Submissions: [{ Id: "history" }] }] : [];
     } catch (error) {
         console.warn(`Failed to fetch submission history for assignment ${assignment_id}:`, error);
         return [];
     }
 }
 
-async function get_discussion_topic_posts(base_url: string, course_id: number, forum_id: number, topic_id: number): Promise<BrightspacePost[]> {
+async function fetch_topic_posts(base_url: string, course_id: number, forum_id: number, topic_id: number): Promise<BrightspacePost[]> {
     try {
-        const posts_url = base_url + `/d2l/api/le/1.82/${course_id}/discussions/forums/${forum_id}/topics/${topic_id}/posts/`;
-        const posts = await get_brightspace_data(posts_url);
+        const posts_url = `${base_url}/d2l/api/le/${ApiVersion.LE}/${course_id}/discussions/forums/${forum_id}/topics/${topic_id}/posts/`;
+        const posts = await fetch_paged_api_data(posts_url);
         return Array.isArray(posts) ? posts as BrightspacePost[] : [];
     } catch (error) {
         console.warn(`Failed to fetch posts for topic ${topic_id}:`, error);
@@ -208,10 +214,10 @@ async function get_discussion_topic_posts(base_url: string, course_id: number, f
     }
 }
 
-async function get_brightspace_discussion_forums(base_url: string, course_id: number): Promise<BrightspaceDiscussionForum[]> {
-    const forums_url = base_url + `/d2l/api/le/1.82/${course_id}/discussions/forums/`;
+async function fetch_discussion_forums(base_url: string, course_id: number): Promise<BrightspaceDiscussionForum[]> {
     try {
-        const forums = await get_brightspace_data(forums_url);
+        const forums_url = `${base_url}/d2l/api/le/${ApiVersion.LE}/${course_id}/discussions/forums/`;
+        const forums = await fetch_paged_api_data(forums_url);
         return Array.isArray(forums) ? forums as BrightspaceDiscussionForum[] : [];
     } catch (error) {
         console.warn(`Failed to fetch discussion forums for course ${course_id}:`, error);
@@ -219,10 +225,10 @@ async function get_brightspace_discussion_forums(base_url: string, course_id: nu
     }
 }
 
-async function get_brightspace_discussion_topics(base_url: string, course_id: number, forum_id: number): Promise<BrightspaceDiscussionTopic[]> {
-    const topics_url = base_url + `/d2l/api/le/1.82/${course_id}/discussions/forums/${forum_id}/topics/`;
+async function fetch_discussion_topics(base_url: string, course_id: number, forum_id: number): Promise<BrightspaceDiscussionTopic[]> {
     try {
-        const topics = await get_brightspace_data(topics_url);
+        const topics_url = `${base_url}/d2l/api/le/${ApiVersion.LE}/${course_id}/discussions/forums/${forum_id}/topics/`;
+        const topics = await fetch_paged_api_data(topics_url);
         return Array.isArray(topics) ? topics as BrightspaceDiscussionTopic[] : [];
     } catch (error) {
         console.warn(`Failed to fetch discussion topics for course ${course_id}, forum ${forum_id}:`, error);
@@ -230,43 +236,44 @@ async function get_brightspace_discussion_topics(base_url: string, course_id: nu
     }
 }
 
-async function get_current_user_id(base_url: string): Promise<number | null> {
+async function fetch_current_user_id(base_url: string): Promise<number | null> {
     try {
-        const response = await fetch(base_url + '/d2l/api/lp/1.49/users/whoami');
+        const response = await fetch(`${base_url}/d2l/api/lp/${ApiVersion.LP_WHOAMI}/users/whoami`);
         if (!response.ok) return null;
         const data = await response.json();
         return parseInt(data.Identifier, 10);
     } catch (error) {
-        console.warn('Failed to fetch current user ID:', error);
+        console.warn("Failed to fetch current user ID:", error);
         return null;
     }
 }
 
-async function get_base_url(tab_url: string): Promise<string> {
+function extract_base_url(tab_url: string): string {
     const url = new URL(tab_url);
     return url.protocol + "//" + url.host;
 }
 
-export async function get_brightspace_data(url: string): Promise<unknown[]> {
+export async function fetch_paged_api_data(url: string): Promise<unknown[]> {
     const response = await fetch(url);
     const data = await response.json();
 
-    if ("Next" in data) { // check if there is next page for course data
+    if ("Next" in data) {
         const paged = data as PagedResponse<unknown>;
         if (!paged.Next) {
             return paged.Objects;
         } else {
-            return paged.Objects.concat(await get_brightspace_data(paged.Next));
+            return paged.Objects.concat(await fetch_paged_api_data(paged.Next));
         }
     }
-    else if ("PagingInfo" in data && data.PagingInfo && data.PagingInfo.HasMoreItems) { // check if there is next page for enrollment data
-        const paginated = data as PaginatedResponse<unknown>;
-        const current_page = new URL(url);
-        current_page.searchParams.set("bookmark", paginated.PagingInfo.Bookmark); //append ?bookmark=... for next page
 
-        const next_page_items = await get_brightspace_data(current_page.toString());
+    if ("PagingInfo" in data && data.PagingInfo && data.PagingInfo.HasMoreItems) {
+        const paginated = data as PaginatedResponse<unknown>;
+        const next_page_url = new URL(url);
+        next_page_url.searchParams.set("bookmark", paginated.PagingInfo.Bookmark);
+        const next_page_items = await fetch_paged_api_data(next_page_url.toString());
         return paginated.Items.concat(next_page_items);
     }
+
     if (Array.isArray(data)) {
         return data;
     }
@@ -282,156 +289,165 @@ export function clear_past_start_date(start_date: string | null | undefined): st
     return start_date_only <= now_only ? null : start_date;
 }
 
-async function get_brightspace_courses(base_url: string): Promise<BrightspaceCourseInfo[]> {
-    const courses_url = base_url + "/d2l/api/lp/1.43/enrollments/myenrollments/";
-    const all_courses = await get_brightspace_data(courses_url);
-    return (all_courses as BrightspaceCourseInfo[]).filter(function(course) {
+async function fetch_active_courses(base_url: string): Promise<BrightspaceCourseInfo[]> {
+    const courses_url = `${base_url}/d2l/api/lp/${ApiVersion.LP_ENROLLMENTS}/enrollments/myenrollments/`;
+    const all_enrollments = await fetch_paged_api_data(courses_url);
+    return (all_enrollments as BrightspaceCourseInfo[]).filter(function(course) {
         return course.Access.CanAccess && course.Access.IsActive && course.OrgUnit.Type.Id === COURSE_ORG_UNIT_TYPE_ID;
     });
 }
 
-export async function build_course_data(all_courses: BrightspaceCourseInfo[], all_items: BrightspaceItem[]): Promise<Record<string, Course>> {
-    const course_data: Record<string, Course> = {};
-
-    // Iterate through courses and convert them into Course objects
-    all_courses.forEach(courseData => {
+export function build_courses_map(all_courses: BrightspaceCourseInfo[]): Record<string, Course> {
+    const courses_map: Record<string, Course> = {};
+    all_courses.forEach(function(course_data) {
         const course = new Course(
-            courseData.OrgUnit.Id,
-            courseData.OrgUnit.Name,
-            courseData.HomeUrl
+            course_data.OrgUnit.Id,
+            course_data.OrgUnit.Name,
+            course_data.HomeUrl
         );
-        course_data[course.id] = course;
-
+        courses_map[course.id] = course;
     });
-
-    // Iterate through items and convert them into Item objects
-    all_items.forEach(itemData => {
-        const item = new Item(
-            itemData.ItemId,
-            itemData.ItemName,
-            itemData.ItemUrl,
-            itemData.DueDate || itemData.EndDate, // Use EndDate if DueDate is null
-            !!itemData.DateCompleted, // Item is completed if DateCompleted exists
-            itemData.StartDate || null // Start date when item becomes available
-        );
-
-        const course = course_data[itemData.OrgUnitId];
-
-        // Add the item to the appropriate course map
-        if (course) {
-            switch (itemData.ActivityType) {
-                case ActivityType.DROPBOX:
-                    course.addAssignment(item);
-                    break;
-                case ActivityType.QUIZ:
-                    course.addQuiz(item);
-                    break;
-                case ActivityType.DISCUSSION:
-                    course.addDiscussion(item);
-                    break;
-                default:
-                    console.warn(`Unused ActivityType: ${itemData.ActivityType}`);
-            }
-        }
-    });
-
-    // Return the processed data
-    return course_data;
+    return courses_map;
 }
 
-export async function get_course_content(tabUrl: string): Promise<Record<string, CourseShape>> {
-    const base_url = await get_base_url(tabUrl);
-    const all_courses = await get_brightspace_courses(base_url);
-    const course_ids_csv = await all_courses.map(course => course.OrgUnit.Id).join(","); // e.g courseId1, courseId2, ...
-    const current_user_id = await get_current_user_id(base_url);
-
-    let course_items: BrightspaceItem[] = [];
-
-    // Fetch quizzes and assignments for each course and add them to course_items
-    for (const course of all_courses) {
-
-        const course_quizzes = await get_brightspace_quizzes(base_url, course.OrgUnit.Id);
-
-        // Fetch attempt counts for all quizzes in this course in parallel
-        // attempt count > 0 means the quiz has been completed at least once, so
-        // we manually add a completion date causing the quiz to be marked completed in calendar
-        const attempt_counts = await Promise.all(
-            course_quizzes.map(quiz => get_quiz_attempt_count(base_url, quiz.QuizId, course.OrgUnit.Id))
+export function add_items_to_courses(courses_map: Record<string, Course>, all_items: BrightspaceItem[]): void {
+    all_items.forEach(function(item_data) {
+        const item = new Item(
+            item_data.ItemId,
+            item_data.ItemName,
+            item_data.ItemUrl,
+            item_data.DueDate || item_data.EndDate,
+            !!item_data.DateCompleted,
+            item_data.StartDate || null
         );
 
-        const quiz_items = course_quizzes.map(function(quiz, index) {
-            const attempt_count = attempt_counts[index];
-            return {
-                OrgUnitId: course.OrgUnit.Id,
-                ItemId: quiz.QuizId,
-                ItemName: quiz.Name,
-                ItemType: ActivityType.QUIZ,
-                ItemUrl: base_url + `/d2l/lms/quizzing/user/quiz_summary.d2l?ou=${course.OrgUnit.Id}&qi=${quiz.QuizId}&cfql=0`,
-                StartDate: clear_past_start_date(quiz.start_date),
-                DueDate: quiz.DueDate || quiz.EndDate, // Use EndDate if DueDate is null
-                ActivityType: ActivityType.QUIZ,
-                DateCompleted: attempt_count > 0 ? new Date().toISOString() : null
-            };
-        });
-        course_items = course_items.concat(quiz_items);
+        const course = courses_map[item_data.OrgUnitId];
+        if (!course) return;
 
-        const course_assignments = await get_brightspace_assignments(base_url, course.OrgUnit.Id);
-
-        // Fetch submissions for all assignments in this course in parallel
-        const assignment_submissions = await Promise.all(
-            course_assignments.map(assignment => get_assignment_submissions(base_url, course.OrgUnit.Id, assignment.Id))
-        );
-
-        const assignment_items = course_assignments.map(function(assignment, index) {
-            const submissions = assignment_submissions[index];
-            const has_submission = submissions.some(s => s.Submissions && s.Submissions.length > 0);
-            const item = {
-                OrgUnitId: course.OrgUnit.Id,
-                ItemId: assignment.Id,
-                ItemName: assignment.Name,
-                ItemType: ActivityType.DROPBOX,
-                ItemUrl: base_url + `/d2l/lms/dropbox/user/folder_submit_files.d2l?db=${assignment.Id}&grpid=0&isprv=0&bp=0&ou=${course.OrgUnit.Id}`,
-                StartDate: clear_past_start_date(assignment.Availability?.start_date),
-                DueDate: assignment.DueDate || assignment.Availability?.EndDate,
-                ActivityType: ActivityType.DROPBOX,
-                DateCompleted: has_submission ? new Date().toISOString() : null
-            };
-            return item;
-        });
-        course_items = course_items.concat(assignment_items);
-
-        const discussion_forums = await get_brightspace_discussion_forums(base_url, course.OrgUnit.Id);
-
-        for (const forum of discussion_forums) {
-            const discussion_topics = await get_brightspace_discussion_topics(base_url, course.OrgUnit.Id, forum.ForumId);
-
-            // Fetch posts for all topics in this forum in parallel
-            const topic_posts = await Promise.all(
-                discussion_topics.map(topic => get_discussion_topic_posts(base_url, course.OrgUnit.Id, forum.ForumId, topic.TopicId))
-            );
-
-            const discussion_items = discussion_topics.map(function(topic, index) {
-                const posts = topic_posts[index];
-                const has_posted = current_user_id !== null && posts.some(p => p.PostingUserId === current_user_id);
-                const item = {
-                    OrgUnitId: course.OrgUnit.Id,
-                    ItemId: topic.TopicId,
-                    ItemName: topic.Name,
-                    ItemType: ActivityType.DISCUSSION,
-                    ItemUrl: base_url + `/d2l/le/${course.OrgUnit.Id}/discussions/topics/${topic.TopicId}/View`,
-                    StartDate: clear_past_start_date(topic.start_date),
-                    DueDate: topic.EndDate || topic.start_date,
-                    ActivityType: ActivityType.DISCUSSION,
-                    DateCompleted: has_posted ? new Date().toISOString() : null
-                };
-                return item;
-            });
-            course_items = course_items.concat(discussion_items);
+        switch (item_data.ActivityType) {
+            case ActivityType.DROPBOX:
+                course.addAssignment(item);
+                break;
+            case ActivityType.QUIZ:
+                course.addQuiz(item);
+                break;
+            case ActivityType.DISCUSSION:
+                course.addDiscussion(item);
+                break;
+            default:
+                console.warn(`Unused ActivityType: ${item_data.ActivityType}`);
         }
+    });
+}
+
+export function build_course_data(all_courses: BrightspaceCourseInfo[], all_items: BrightspaceItem[]): Record<string, Course> {
+    const courses_map = build_courses_map(all_courses);
+    add_items_to_courses(courses_map, all_items);
+    return courses_map;
+}
+
+export function build_quiz_item(base_url: string, course_id: number, quiz: BrightspaceQuiz, attempt_count: number): BrightspaceItem {
+    return {
+        OrgUnitId: course_id,
+        ItemId: quiz.QuizId,
+        ItemName: quiz.Name,
+        ItemType: ActivityType.QUIZ,
+        ItemUrl: `${base_url}/d2l/lms/quizzing/user/quiz_summary.d2l?ou=${course_id}&qi=${quiz.QuizId}&cfql=0`,
+        StartDate: clear_past_start_date(quiz.start_date),
+        DueDate: quiz.DueDate || quiz.EndDate,
+        ActivityType: ActivityType.QUIZ,
+        DateCompleted: attempt_count > 0 ? new Date().toISOString() : null,
+    };
+}
+
+export function build_assignment_item(base_url: string, course_id: number, assignment: BrightspaceAssignment, has_submission: boolean): BrightspaceItem {
+    return {
+        OrgUnitId: course_id,
+        ItemId: assignment.Id,
+        ItemName: assignment.Name,
+        ItemType: ActivityType.DROPBOX,
+        ItemUrl: `${base_url}/d2l/lms/dropbox/user/folder_submit_files.d2l?db=${assignment.Id}&grpid=0&isprv=0&bp=0&ou=${course_id}`,
+        StartDate: clear_past_start_date(assignment.Availability?.start_date),
+        DueDate: assignment.DueDate || assignment.Availability?.EndDate,
+        ActivityType: ActivityType.DROPBOX,
+        DateCompleted: has_submission ? new Date().toISOString() : null,
+    };
+}
+
+export function build_discussion_item(base_url: string, course_id: number, topic: BrightspaceDiscussionTopic, has_posted: boolean): BrightspaceItem {
+    return {
+        OrgUnitId: course_id,
+        ItemId: topic.TopicId,
+        ItemName: topic.Name,
+        ItemType: ActivityType.DISCUSSION,
+        ItemUrl: `${base_url}/d2l/le/${course_id}/discussions/topics/${topic.TopicId}/View`,
+        StartDate: clear_past_start_date(topic.start_date),
+        DueDate: topic.EndDate || topic.start_date,
+        ActivityType: ActivityType.DISCUSSION,
+        DateCompleted: has_posted ? new Date().toISOString() : null,
+    };
+}
+
+async function fetch_quiz_items_for_course(base_url: string, course: BrightspaceCourseInfo): Promise<BrightspaceItem[]> {
+    const quizzes = await fetch_quizzes(base_url, course.OrgUnit.Id);
+    const attempt_counts = await Promise.all(
+        quizzes.map(quiz => get_quiz_attempt_count(base_url, quiz.QuizId, course.OrgUnit.Id))
+    );
+    return quizzes.map((quiz, index) => build_quiz_item(base_url, course.OrgUnit.Id, quiz, attempt_counts[index]));
+}
+
+async function fetch_assignment_items_for_course(base_url: string, course: BrightspaceCourseInfo): Promise<BrightspaceItem[]> {
+    const assignments = await fetch_assignments(base_url, course.OrgUnit.Id);
+    const all_submissions = await Promise.all(
+        assignments.map(assignment => get_assignment_submissions(base_url, course.OrgUnit.Id, assignment.Id))
+    );
+    return assignments.map(function(assignment, index) {
+        const has_submission = all_submissions[index].some(s => s.Submissions && s.Submissions.length > 0);
+        return build_assignment_item(base_url, course.OrgUnit.Id, assignment, has_submission);
+    });
+}
+
+async function fetch_discussion_items_for_course(base_url: string, course: BrightspaceCourseInfo, current_user_id: number | null): Promise<BrightspaceItem[]> {
+    const forums = await fetch_discussion_forums(base_url, course.OrgUnit.Id);
+    const all_items: BrightspaceItem[] = [];
+
+    for (const forum of forums) {
+        const topics = await fetch_discussion_topics(base_url, course.OrgUnit.Id, forum.ForumId);
+        const all_posts = await Promise.all(
+            topics.map(topic => fetch_topic_posts(base_url, course.OrgUnit.Id, forum.ForumId, topic.TopicId))
+        );
+        const discussion_items = topics.map(function(topic, index) {
+            const has_posted = current_user_id !== null && all_posts[index].some(p => p.PostingUserId === current_user_id);
+            return build_discussion_item(base_url, course.OrgUnit.Id, topic, has_posted);
+        });
+        all_items.push(...discussion_items);
     }
 
-    const course_data = await build_course_data(all_courses, course_items);
-
-    return course_data;
+    return all_items;
 }
+
+async function fetch_items_for_course(base_url: string, course: BrightspaceCourseInfo, current_user_id: number | null): Promise<BrightspaceItem[]> {
+    const quiz_items = await fetch_quiz_items_for_course(base_url, course);
+    const assignment_items = await fetch_assignment_items_for_course(base_url, course);
+    const discussion_items = await fetch_discussion_items_for_course(base_url, course, current_user_id);
+    return [...quiz_items, ...assignment_items, ...discussion_items];
+}
+
+async function fetch_all_course_items(base_url: string, courses: BrightspaceCourseInfo[], current_user_id: number | null): Promise<BrightspaceItem[]> {
+    const all_items: BrightspaceItem[] = [];
+    for (const course of courses) {
+        const course_items = await fetch_items_for_course(base_url, course, current_user_id);
+        all_items.push(...course_items);
+    }
+    return all_items;
+}
+
+export async function get_course_content(tab_url: string): Promise<Record<string, CourseShape>> {
+    const base_url = extract_base_url(tab_url);
+    const all_courses = await fetch_active_courses(base_url);
+    const current_user_id = await fetch_current_user_id(base_url);
+    const all_items = await fetch_all_course_items(base_url, all_courses, current_user_id);
+    return build_course_data(all_courses, all_items);
+}
+
 

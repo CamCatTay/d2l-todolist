@@ -5,7 +5,7 @@ import {
     ActivityType,
     COURSE_ORG_UNIT_TYPE_ID,
     clear_past_start_date,
-    get_brightspace_data,
+    fetch_paged_api_data,
     get_quiz_attempt_count,
     get_assignment_submissions,
     get_assignment_submissions_from_history,
@@ -30,7 +30,7 @@ function mock_text(html: string, ok = true) {
 }
 
 beforeEach(() => {
-    global.fetch = vi.fn() as typeof global.fetch;
+    globalThis.fetch = vi.fn() as typeof globalThis.fetch;
 });
 
 afterEach(() => {
@@ -62,61 +62,60 @@ describe("clear_past_start_date", () => {
     });
 });
 
-describe("get_brightspace_data", () => {
+describe("fetch_paged_api_data", () => {
     test("returns a plain array response directly", async () => {
         const data = [{ id: 1 }, { id: 2 }];
-        vi.mocked(global.fetch).mockResolvedValue(mock_json(data) as unknown as Response);
+        vi.mocked(globalThis.fetch).mockResolvedValue(mock_json(data) as unknown as Response);
 
-        const result = await get_brightspace_data("https://example.com/api");
+        const result = await fetch_paged_api_data("https://example.com/api");
         expect(result).toEqual(data);
     });
 
     test("returns Objects when Next is null (final page of course-data pagination)", async () => {
-        vi.mocked(global.fetch).mockResolvedValue(mock_json({ Next: null, Objects: [{ id: 1 }] }) as unknown as Response);
+        vi.mocked(globalThis.fetch).mockResolvedValue(mock_json({ Next: null, Objects: [{ id: 1 }] }) as unknown as Response);
 
-        const result = await get_brightspace_data("https://example.com/api");
+        const result = await fetch_paged_api_data("https://example.com/api");
         expect(result).toEqual([{ id: 1 }]);
     });
 
     test("concatenates pages when Next URL is present", async () => {
-        vi.mocked(global.fetch)
+        vi.mocked(globalThis.fetch)
             .mockResolvedValueOnce(mock_json({ Next: "https://example.com/api?page=2", Objects: [{ id: 1 }] }) as unknown as Response)
             .mockResolvedValueOnce(mock_json({ Next: null, Objects: [{ id: 2 }] }) as unknown as Response);
 
-        const result = await get_brightspace_data("https://example.com/api");
+        const result = await fetch_paged_api_data("https://example.com/api");
         expect(result).toEqual([{ id: 1 }, { id: 2 }]);
-        expect(global.fetch).toHaveBeenCalledTimes(2);
+        expect(globalThis.fetch).toHaveBeenCalledTimes(2);
     });
 
     test("handles PagingInfo pagination across two pages", async () => {
-        vi.mocked(global.fetch)
+        vi.mocked(globalThis.fetch)
             .mockResolvedValueOnce(mock_json({ PagingInfo: { HasMoreItems: true, Bookmark: "bm1" }, Items: [{ id: 1 }] }) as unknown as Response)
             .mockResolvedValueOnce(mock_json({ PagingInfo: { HasMoreItems: false }, Items: [{ id: 2 }] }) as unknown as Response);
 
-        const result = await get_brightspace_data("https://example.com/api");
+        const result = await fetch_paged_api_data("https://example.com/api");
         expect(result).toEqual([{ id: 1 }, { id: 2 }]);
-        // Second call must include the bookmark
-        expect(vi.mocked(global.fetch).mock.calls[1][0]).toContain("bookmark=bm1");
+        expect(vi.mocked(globalThis.fetch).mock.calls[1][0]).toContain("bookmark=bm1");
     });
 
     test("falls back to data.Items from a non-paginated object response", async () => {
-        vi.mocked(global.fetch).mockResolvedValue(mock_json({ Items: [{ id: 1 }] }) as unknown as Response);
+        vi.mocked(globalThis.fetch).mockResolvedValue(mock_json({ Items: [{ id: 1 }] }) as unknown as Response);
 
-        const result = await get_brightspace_data("https://example.com/api");
+        const result = await fetch_paged_api_data("https://example.com/api");
         expect(result).toEqual([{ id: 1 }]);
     });
 
     test("returns empty array when object has no recognised shape", async () => {
-        vi.mocked(global.fetch).mockResolvedValue(mock_json({ SomeUnknownKey: "value" }) as unknown as Response);
+        vi.mocked(globalThis.fetch).mockResolvedValue(mock_json({ SomeUnknownKey: "value" }) as unknown as Response);
 
-        const result = await get_brightspace_data("https://example.com/api");
+        const result = await fetch_paged_api_data("https://example.com/api");
         expect(result).toEqual([]);
     });
 });
 
 describe("get_quiz_attempt_count", () => {
     test("returns 0 when the HTTP response is not OK", async () => {
-        vi.mocked(global.fetch).mockResolvedValue({ ok: false, text: vi.fn() } as unknown as Response);
+        vi.mocked(globalThis.fetch).mockResolvedValue({ ok: false, text: vi.fn() } as unknown as Response);
 
         const result = await get_quiz_attempt_count("https://example.com", 1, 100);
         expect(result).toBe(0);
@@ -124,7 +123,7 @@ describe("get_quiz_attempt_count", () => {
 
     test("extracts count from the z_l element (primary path)", async () => {
         const html = `<span id="z_l">Completed - 2</span>`;
-        vi.mocked(global.fetch).mockResolvedValue(mock_text(html) as unknown as Response);
+        vi.mocked(globalThis.fetch).mockResolvedValue(mock_text(html) as unknown as Response);
 
         const result = await get_quiz_attempt_count("https://example.com", 1, 100);
         expect(result).toBe(2);
@@ -132,7 +131,7 @@ describe("get_quiz_attempt_count", () => {
 
     test("uses fallback regex when z_l element is absent", async () => {
         const html = `<div>Some content Completed - 3 attempts recorded</div>`;
-        vi.mocked(global.fetch).mockResolvedValue(mock_text(html) as unknown as Response);
+        vi.mocked(globalThis.fetch).mockResolvedValue(mock_text(html) as unknown as Response);
 
         const result = await get_quiz_attempt_count("https://example.com", 1, 100);
         expect(result).toBe(3);
@@ -140,7 +139,7 @@ describe("get_quiz_attempt_count", () => {
 
     test("uses fallback regex when z_l element exists but lacks completion text", async () => {
         const html = `<span id="z_l">In Progress</span><p>Completed - 1 attempt</p>`;
-        vi.mocked(global.fetch).mockResolvedValue(mock_text(html) as unknown as Response);
+        vi.mocked(globalThis.fetch).mockResolvedValue(mock_text(html) as unknown as Response);
 
         // z_l element text has no "Completed - N", but fallback finds it elsewhere
         const result = await get_quiz_attempt_count("https://example.com", 1, 100);
@@ -149,14 +148,14 @@ describe("get_quiz_attempt_count", () => {
 
     test("returns 0 when neither pattern matches", async () => {
         const html = `<div>No completion info here</div>`;
-        vi.mocked(global.fetch).mockResolvedValue(mock_text(html) as unknown as Response);
+        vi.mocked(globalThis.fetch).mockResolvedValue(mock_text(html) as unknown as Response);
 
         const result = await get_quiz_attempt_count("https://example.com", 1, 100);
         expect(result).toBe(0);
     });
 
     test("returns 0 on network error", async () => {
-        vi.mocked(global.fetch).mockRejectedValue(new Error("Network error"));
+        vi.mocked(globalThis.fetch).mockRejectedValue(new Error("Network error"));
 
         const result = await get_quiz_attempt_count("https://example.com", 1, 100);
         expect(result).toBe(0);
@@ -166,14 +165,14 @@ describe("get_quiz_attempt_count", () => {
 describe("get_assignment_submissions", () => {
     test("returns the submissions array on success", async () => {
         const submissions = [{ Submissions: [{ Id: "1" }] }];
-        vi.mocked(global.fetch).mockResolvedValue(mock_json(submissions) as unknown as Response);
+        vi.mocked(globalThis.fetch).mockResolvedValue(mock_json(submissions) as unknown as Response);
 
         const result = await get_assignment_submissions("https://example.com", 101, 10);
         expect(result).toEqual(submissions);
     });
 
     test("returns empty array when API returns a non-array without Errors", async () => {
-        vi.mocked(global.fetch).mockResolvedValue(mock_json({ SomeOtherKey: "value" }) as unknown as Response);
+        vi.mocked(globalThis.fetch).mockResolvedValue(mock_json({ SomeOtherKey: "value" }) as unknown as Response);
 
         const result = await get_assignment_submissions("https://example.com", 101, 10);
         expect(result).toEqual([]);
@@ -182,7 +181,7 @@ describe("get_assignment_submissions", () => {
     test("falls back to history page when API returns an Errors object — submission found", async () => {
         const error_body = { Errors: [{ Message: "Folder closed" }] };
         const history_html = `<table><tr><td class="d_gn d_gt">submitted.pdf</td></tr></table>`;
-        vi.mocked(global.fetch)
+        vi.mocked(globalThis.fetch)
             .mockResolvedValueOnce(mock_json(error_body) as unknown as Response)
             .mockResolvedValueOnce(mock_text(history_html) as unknown as Response);
 
@@ -193,7 +192,7 @@ describe("get_assignment_submissions", () => {
     test("falls back to history page when API returns Errors — no submission found", async () => {
         const error_body = { Errors: [{ Message: "Folder closed" }] };
         const history_html = `<table><tr><td>No rows</td></tr></table>`;
-        vi.mocked(global.fetch)
+        vi.mocked(globalThis.fetch)
             .mockResolvedValueOnce(mock_json(error_body) as unknown as Response)
             .mockResolvedValueOnce(mock_text(history_html) as unknown as Response);
 
@@ -202,7 +201,7 @@ describe("get_assignment_submissions", () => {
     });
 
     test("returns empty array on network error", async () => {
-        vi.mocked(global.fetch).mockRejectedValue(new Error("Network error"));
+        vi.mocked(globalThis.fetch).mockRejectedValue(new Error("Network error"));
 
         const result = await get_assignment_submissions("https://example.com", 101, 10);
         expect(result).toEqual([]);
@@ -212,7 +211,7 @@ describe("get_assignment_submissions", () => {
 describe("get_assignment_submissions_from_history", () => {
     test("returns a synthetic submission when the history table has a data row", async () => {
         const html = `<table><tr><td class="d_gn d_gt">file.pdf</td></tr></table>`;
-        vi.mocked(global.fetch).mockResolvedValue(mock_text(html) as unknown as Response);
+        vi.mocked(globalThis.fetch).mockResolvedValue(mock_text(html) as unknown as Response);
 
         const result = await get_assignment_submissions_from_history("https://example.com", 101, 10);
         expect(result).toEqual([{ Submissions: [{ Id: "history" }] }]);
@@ -220,21 +219,21 @@ describe("get_assignment_submissions_from_history", () => {
 
     test("returns empty array when no submission rows are found", async () => {
         const html = `<table><tr><td>No submissions yet</td></tr></table>`;
-        vi.mocked(global.fetch).mockResolvedValue(mock_text(html) as unknown as Response);
+        vi.mocked(globalThis.fetch).mockResolvedValue(mock_text(html) as unknown as Response);
 
         const result = await get_assignment_submissions_from_history("https://example.com", 101, 10);
         expect(result).toEqual([]);
     });
 
     test("returns empty array when the HTTP response is not OK", async () => {
-        vi.mocked(global.fetch).mockResolvedValue({ ok: false, text: vi.fn() } as unknown as Response);
+        vi.mocked(globalThis.fetch).mockResolvedValue({ ok: false, text: vi.fn() } as unknown as Response);
 
         const result = await get_assignment_submissions_from_history("https://example.com", 101, 10);
         expect(result).toEqual([]);
     });
 
     test("returns empty array on network error", async () => {
-        vi.mocked(global.fetch).mockRejectedValue(new Error("Network error"));
+        vi.mocked(globalThis.fetch).mockRejectedValue(new Error("Network error"));
 
         const result = await get_assignment_submissions_from_history("https://example.com", 101, 10);
         expect(result).toEqual([]);
@@ -348,7 +347,7 @@ describe("get_course_content", () => {
             ? [{ Submissions: [{ Id: "1" }] }]
             : [];
 
-        vi.mocked(global.fetch)
+        vi.mocked(globalThis.fetch)
             // 1. enrollments
             .mockResolvedValueOnce(mock_json({
                 PagingInfo: { HasMoreItems: false },
@@ -438,7 +437,7 @@ describe("get_course_content", () => {
     });
 
     test("inactive and non-type-3 courses are excluded from results", async () => {
-        vi.mocked(global.fetch)
+        vi.mocked(globalThis.fetch)
             // enrollments — one active course, one inactive
             .mockResolvedValueOnce(mock_json({
                 PagingInfo: { HasMoreItems: false },
