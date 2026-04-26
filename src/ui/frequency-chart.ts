@@ -77,7 +77,7 @@ function create_settings_button(): HTMLButtonElement {
             settings_panel = build_settings_panel();
             document.body.appendChild(settings_panel);
         }
-        settings_panel.classList.toggle("open");
+        settings_panel.classList.toggle(SettingsCss.OPEN);
         settings_panel.style.right = panel_width + "px";
     });
     return btn;
