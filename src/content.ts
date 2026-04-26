@@ -1,14 +1,10 @@
-// Injected into Brightspace pages. Bootstraps the side panel, triggers data
-// fetches via the background worker, and manages panel lifecycle.
-
 import { Action } from "./shared/actions";
 import {
     safe_send_message,
     inject_embedded_ui,
     register_panel_restore_callback,
-    register_panel_open_callback,
+    register_settings_panel_builder,
     toggle_panel,
-    panel_width,
 } from "./ui/panel";
 import {
     initialize_gui,
@@ -19,217 +15,205 @@ import {
     register_ui_callbacks,
 } from "./ui/calendar";
 import { scroll_to_today } from "./ui/frequency-chart";
-import { register_settings_panel_builder } from "./ui/panel";
 import { build_settings_panel } from "./ui/settings-menu";
-
 import type { CourseData } from "./shared/types";
 
 const COURSE_DATA_KEY = "courseData";
 const LAST_FETCHED_KEY = "spark-last-fetched";
 const SETTINGS_VALUE_KEY = "spark-user-settings";
-// Tab-local, session-scoped (sessionStorage — NOT synced across tabs):
 const SCROLL_POS_SESSION_KEY = "spark-scroll-pos";
-// Window-scoped flag read by the background worker to detect if this tab is already initialized.
 const SPARK_INITIALIZED_FLAG = "__spark_initialized__";
 
-// Minimum time between smart-triggered fetches (tab focus, page interaction).
-// Page load and manual refresh always bypass this cooldown.
 const FETCH_COOLDOWN_MS = 5 * 60 * 1000;
 const INTERACTION_DEBOUNCE_MS = 2000;
+const SCROLL_SAVE_DEBOUNCE_MS = 300;
 
-let fetch_in_flight: boolean = false;
-let global_fetch_in_flight: boolean = false; // true when another tab's fetch is still running
-let _refresh_fn: (() => void) | null = null;
-let _rerender_fn: (() => void) | null = null;
-let last_completed_fetch_time: number = 0;
+let course_data: CourseData = {};
+let calendar_container: HTMLElement | null = null;
+let fetch_in_flight = false;
+let remote_fetch_in_flight = false;
+let last_fetch_completed_at = 0;
 let interaction_debounce_timer: ReturnType<typeof setTimeout> | undefined;
+let scroll_save_debounce: ReturnType<typeof setTimeout> | undefined;
 
-function trigger_refresh() {
-    if (_refresh_fn) _refresh_fn();
+function fetch_and_store_courses() {
+    if (fetch_in_flight) return;
+    fetch_in_flight = true;
+    add_data_status_indicator(true);
+    safe_send_message({ action: Action.BROADCAST_FETCH_STARTED });
+    safe_send_message({ action: Action.FETCH_COURSES }, on_fetch_response);
 }
 
-function trigger_rerender() {
-    if (_rerender_fn) _rerender_fn();
+function on_fetch_response(response: unknown) {
+    fetch_in_flight = false;
+    if (!response) return;
+    course_data = JSON.parse(JSON.stringify(response));
+    const fetched_at = new Date();
+    set_last_fetched_time(fetched_at);
+    chrome.storage.local.set(
+        { [COURSE_DATA_KEY]: course_data, [LAST_FETCHED_KEY]: fetched_at.toISOString() },
+        on_course_data_stored
+    );
 }
 
-// Fetches only if the cooldown has lifted and no fetch is in flight.
-// Used by smart triggers (tab focus, page interaction) — never for manual refresh or page load.
+function on_course_data_stored() {
+    last_fetch_completed_at = Date.now();
+    update_gui(course_data, false);
+    safe_send_message({ action: Action.BROADCAST_COURSE_DATA_UPDATED });
+}
+
+function rerender_with_cached_data() {
+    if (course_data && Object.keys(course_data).length > 0) {
+        update_gui(course_data, fetch_in_flight || remote_fetch_in_flight);
+    }
+}
+
+function is_any_fetch_in_flight() {
+    return fetch_in_flight || remote_fetch_in_flight;
+}
+
+function is_fetch_cooldown_active() {
+    return Date.now() - last_fetch_completed_at < FETCH_COOLDOWN_MS;
+}
+
 function try_smart_fetch() {
-    if (!_refresh_fn) return;
-    if (fetch_in_flight || global_fetch_in_flight) return;
-    if (Date.now() - last_completed_fetch_time < FETCH_COOLDOWN_MS) return;
-    _refresh_fn();
+    if (is_any_fetch_in_flight()) return;
+    if (is_fetch_cooldown_active()) return;
+    fetch_and_store_courses();
 }
 
-// Debounced wrapper for high-frequency events (mousemove, scroll).
-// Waits for activity to settle before attempting a smart fetch.
 function on_page_interaction() {
     clearTimeout(interaction_debounce_timer);
     interaction_debounce_timer = setTimeout(try_smart_fetch, INTERACTION_DEBOUNCE_MS);
 }
 
-function on_page_ready() {
-    (window as unknown as { [key: string]: unknown })[SPARK_INITIALIZED_FLAG] = true;
-    register_settings_panel_builder(build_settings_panel);
-    let course_data: CourseData = {};
-
-    const calendar_container = inject_embedded_ui();
-    initialize_gui();
-
-    // -- Scroll persistence --
-
-    // Persist scroll position to sessionStorage: saved on scroll (debounced 300 ms).
-    let scroll_save_timer: ReturnType<typeof setTimeout> | undefined;
-    calendar_container.addEventListener("scroll", () => {
-        clearTimeout(scroll_save_timer);
-        scroll_save_timer = setTimeout(() => {
-            sessionStorage.setItem(SCROLL_POS_SESSION_KEY, calendar_container.scrollTop.toString());
-        }, 300);
-    });
-
-    // Returns nothing. Reads the stored scroll position and applies it to the calendar container.
-    // Falls back to scrolling to today's date on first open when no position has been saved.
-    function restore_scroll_position() {
-        const saved = parseInt(sessionStorage.getItem(SCROLL_POS_SESSION_KEY) || "0", 10);
-        if (saved > 0) {
-            requestAnimationFrame(() => {
-                calendar_container.scrollTop = saved;
-            });
-        } else {
-            scroll_to_today();
-        }
+function on_tab_visibility_changed() {
+    if (document.visibilityState === "visible") {
+        try_smart_fetch();
     }
+}
 
-    // -- Panel restore --
+function save_scroll_position() {
+    if (calendar_container) {
+        sessionStorage.setItem(SCROLL_POS_SESSION_KEY, calendar_container.scrollTop.toString());
+    }
+}
 
-    // When this tab's panel is restored after being silently closed by another
-    // tab, re-render the in-memory data so the panel is never blank.
-    register_panel_restore_callback(() => {
-        // Re-apply synced settings then re-render with in-memory data.
-        chrome.storage.local.get([SETTINGS_VALUE_KEY], function(result) {
-            if (result[SETTINGS_VALUE_KEY]) {
-                apply_settings(result[SETTINGS_VALUE_KEY] as { days_back: number; show_completed?: boolean });
-            }
-            if (course_data && Object.keys(course_data).length > 0) {
-                update_gui(course_data, fetch_in_flight || global_fetch_in_flight);
-                // restore_scroll_position()
-            }
+function on_calendar_scroll() {
+    clearTimeout(scroll_save_debounce);
+    scroll_save_debounce = setTimeout(save_scroll_position, SCROLL_SAVE_DEBOUNCE_MS);
+}
+
+function restore_scroll_position() {
+    const saved_scroll_top = parseInt(sessionStorage.getItem(SCROLL_POS_SESSION_KEY) || "0", 10);
+    if (saved_scroll_top > 0) {
+        requestAnimationFrame(() => {
+            if (calendar_container) calendar_container.scrollTop = saved_scroll_top;
         });
-    });
+    } else {
+        scroll_to_today();
+    }
+}
 
-    // -- Initial data load --
+function setup_scroll_persistence() {
+    calendar_container!.addEventListener("scroll", on_calendar_scroll);
+}
 
-    // Load stored data first for immediate display
-    chrome.storage.local.get([COURSE_DATA_KEY, LAST_FETCHED_KEY, SETTINGS_VALUE_KEY], function(result) {
+function on_panel_restored() {
+    chrome.storage.local.get([SETTINGS_VALUE_KEY], function(result) {
         if (result[SETTINGS_VALUE_KEY]) {
             apply_settings(result[SETTINGS_VALUE_KEY] as { days_back: number; show_completed?: boolean });
         }
-        if (result[LAST_FETCHED_KEY]) {
-            set_last_fetched_time(new Date(result[LAST_FETCHED_KEY] as string));
-        }
-        if (result[COURSE_DATA_KEY]) {
-            course_data = JSON.parse(JSON.stringify(result[COURSE_DATA_KEY]));
-            update_gui(course_data, true);
-            restore_scroll_position();
-        }
-    });
-
-    // -- Fetch and re-render callbacks --
-
-    // Fetches fresh course data from the API and updates the UI on completion.
-    _refresh_fn = function() {
-        if (fetch_in_flight) return;
-        fetch_in_flight = true;
-        add_data_status_indicator(true);
-        safe_send_message({ action: Action.BROADCAST_FETCH_STARTED });
-        safe_send_message({ action: Action.FETCH_COURSES }, function(response) {
-            fetch_in_flight = false;
-            if (response) {
-                course_data = JSON.parse(JSON.stringify(response));
-                const fetch_time = new Date();
-                set_last_fetched_time(fetch_time);
-
-                chrome.storage.local.set({ [COURSE_DATA_KEY]: course_data, [LAST_FETCHED_KEY]: fetch_time.toISOString() }, function() {
-                    last_completed_fetch_time = Date.now();
-                    update_gui(course_data, false);
-                    // restore_scroll_position();
-                    safe_send_message({ action: Action.BROADCAST_COURSE_DATA_UPDATED });
-                });
-            }
-        });
-    };
-
-    // Re-renders with current in-memory data (used when settings change without a new fetch).
-    _rerender_fn = function() {
         if (course_data && Object.keys(course_data).length > 0) {
-            update_gui(course_data, fetch_in_flight || global_fetch_in_flight);
-        }
-    };
-
-    // Register refresh/re-render callbacks so the settings UI can trigger them
-    register_ui_callbacks({ on_refresh: trigger_refresh, on_rerender: trigger_rerender });
-
-    // Restore scroll position whenever the panel is opened (including first open on a new tab).
-    /*
-    register_panel_open_callback(() => {
-        // restore_scroll_position(); Commented out in a few places because Im not sure I like how they function
-    });
-    */
-
-    // -- Smart fetch triggers --
-
-    // Fetch when the user switches to this tab or returns to the browser window.
-    // Tab visibility is a discrete event so no debounce is needed.
-    document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible") {
-            try_smart_fetch();
+            update_gui(course_data, fetch_in_flight || remote_fetch_in_flight);
         }
     });
+}
 
-    // Fetch when user interacts with the page (mouse movement or scrolling), debounced
-    // so that activity settling is what triggers the check rather than each raw event.
+function on_initial_cache_loaded(result: { [key: string]: unknown }) {
+    if (result[SETTINGS_VALUE_KEY]) {
+        apply_settings(result[SETTINGS_VALUE_KEY] as { days_back: number; show_completed?: boolean });
+    }
+    if (result[LAST_FETCHED_KEY]) {
+        set_last_fetched_time(new Date(result[LAST_FETCHED_KEY] as string));
+    }
+    if (result[COURSE_DATA_KEY]) {
+        course_data = JSON.parse(JSON.stringify(result[COURSE_DATA_KEY]));
+        update_gui(course_data, true);
+        restore_scroll_position();
+    }
+}
+
+function load_initial_cached_data() {
+    chrome.storage.local.get([COURSE_DATA_KEY, LAST_FETCHED_KEY, SETTINGS_VALUE_KEY], on_initial_cache_loaded);
+}
+
+function register_smart_fetch_listeners() {
+    document.addEventListener("visibilitychange", on_tab_visibility_changed);
     document.addEventListener("mousemove", on_page_interaction);
     window.addEventListener("scroll", on_page_interaction);
-
-    // Fetch fresh data from API — unconditional on page load, bypasses cooldown.
-    _refresh_fn();
 }
 
-// Handles already-loaded pages (e.g. first install on an open tab where "load" won't re-fire).
-if (document.readyState === "complete") {
-    on_page_ready();
-} else {
-    window.addEventListener("load", on_page_ready);
+function on_page_ready() {
+    (window as unknown as { [key: string]: unknown })[SPARK_INITIALIZED_FLAG] = true;
+    register_settings_panel_builder(build_settings_panel);
+    calendar_container = inject_embedded_ui();
+    initialize_gui();
+    setup_scroll_persistence();
+    register_panel_restore_callback(on_panel_restored);
+    register_ui_callbacks({ on_refresh: fetch_and_store_courses, on_rerender: rerender_with_cached_data });
+    register_smart_fetch_listeners();
+    load_initial_cached_data();
+    fetch_and_store_courses();
 }
 
-// Listens for messages from the background service worker and dispatches to the appropriate handler
-chrome.runtime.onMessage.addListener(function(request) {
-    if (request.action === Action.FETCH_STARTED) {
-        // Another tab started fetching — show the loading indicator while we wait for its data.
-        global_fetch_in_flight = true;
-        add_data_status_indicator(true);
+function reload_open_tabs() {
+    if (document.readyState === "complete") {
+        on_page_ready();
+    } else {
+        window.addEventListener("load", on_page_ready);
     }
-    if (request.action === Action.COURSE_DATA_UPDATED) {
-        // Another tab finished fetching — sync from storage and clear the global flag.
-        global_fetch_in_flight = false;
-        chrome.storage.local.get([COURSE_DATA_KEY, LAST_FETCHED_KEY], function(result) {
-            if (result[LAST_FETCHED_KEY]) {
-                set_last_fetched_time(new Date(result[LAST_FETCHED_KEY] as string));
-            }
-            if (result[COURSE_DATA_KEY]) {
-                update_gui(JSON.parse(JSON.stringify(result[COURSE_DATA_KEY])), fetch_in_flight);
-            }
-        });
-    }
-    if (request.action === Action.OPEN_URL) {
-        window.open(request.url, "_blank");
-    }
-    if (request.action === Action.TOGGLE_PANEL) {
-        toggle_panel();
-    }
+}
 
-    if (request.action === Action.SETTINGS_CHANGED) {
-        apply_settings(request.settings);
-        trigger_rerender();
+function on_message_fetch_started() {
+    remote_fetch_in_flight = true;
+    add_data_status_indicator(true);
+}
+
+function on_remote_course_data_loaded(result: { [key: string]: unknown }) {
+    if (result[LAST_FETCHED_KEY]) {
+        set_last_fetched_time(new Date(result[LAST_FETCHED_KEY] as string));
     }
-});
+    if (result[COURSE_DATA_KEY]) {
+        update_gui(JSON.parse(JSON.stringify(result[COURSE_DATA_KEY])), fetch_in_flight);
+    }
+}
+
+function on_message_course_data_updated() {
+    remote_fetch_in_flight = false;
+    chrome.storage.local.get([COURSE_DATA_KEY, LAST_FETCHED_KEY], on_remote_course_data_loaded);
+}
+
+function on_message_open_url(url: string) {
+    window.open(url, "_blank");
+}
+
+function on_message_settings_changed(settings: { days_back: number; show_completed?: boolean }) {
+    apply_settings(settings);
+    rerender_with_cached_data();
+}
+
+function handle_background_message(request: { action: string; url?: string; settings?: { days_back: number; show_completed?: boolean } }) {
+    if (request.action === Action.FETCH_STARTED) on_message_fetch_started();
+    if (request.action === Action.COURSE_DATA_UPDATED) on_message_course_data_updated();
+    if (request.action === Action.OPEN_URL) on_message_open_url(request.url!);
+    if (request.action === Action.TOGGLE_PANEL) toggle_panel();
+    if (request.action === Action.SETTINGS_CHANGED) on_message_settings_changed(request.settings!);
+}
+
+function initialize() {
+    chrome.runtime.onMessage.addListener(handle_background_message);
+    reload_open_tabs();
+}
+
+initialize();

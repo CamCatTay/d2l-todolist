@@ -12,6 +12,7 @@
     "adm",
     "grpid",
     "isprv",
-    "cfql"
+    "cfql",
+    "Cooldown"
   ]
 }

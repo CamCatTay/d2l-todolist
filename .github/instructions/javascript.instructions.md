@@ -15,11 +15,14 @@ applyTo: "**"
 - Use double quotes `""` by default for all strings.
 - Use single quotes `''` only when the string itself contains a double quote, to avoid escaping.
 
-## Function Comments
+## Comments
 
-Complex functions require a short comment above or long comment depending on complexity:
-- Why? Of the function. Why is it needed
-- Any complex or non-obvious parameters (e.g. what a parameter is expected to contain, or what a helper function returns)
+Write code that is self-explanatory through good naming. Comments should be rare.
+
+- Only add a comment above a function when the **why** is not obvious from reading the signature and body alone.
+- Never add inline comments, section-header comments (`// -- Section --`), or comments that just restate what the code does.
+- No redundant comments like `// Fetch courses` above a function called `fetch_courses()`.
+- A single short comment above a function is the maximum — do not write multi-line comment blocks unless the logic is genuinely complex and cannot be simplified.
 
 ## No Magic Numbers or Strings
 
