@@ -16,3 +16,13 @@ export const SettingsCss = Object.freeze({
     PANEL_TITLE: "settings-title",
     SECTION: "settings-section",
 });
+
+export const PanelCss = Object.freeze({
+    WIDGET_ID: "spark-widget",
+    PANEL_ID: "spark-panel",
+    RESIZE_HANDLE: "spark-resize-handle",
+    CALENDAR_CONTAINER_ID: "calendar-container",
+    TOGGLE_BTN_ID: "spark-toggle-btn",
+    TOGGLE_BTN_TITLE: "Toggle Spark panel",
+    WIDGET_HIDDEN: "hidden",
+});
