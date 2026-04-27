@@ -297,7 +297,6 @@ export function toggle_fetching_indicator(status: boolean): void {
     if (!last_fetched_el) return;
 
     last_fetched_el.classList.remove(CalendarCss.FETCHING);
-    console.log("toggle fetch indicator: ", status);
     if (status) {
         const fetch_status = document.createElement("span");
         fetch_status.className = CalendarCss.FETCH_STATUS;
