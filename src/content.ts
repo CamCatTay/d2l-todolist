@@ -2,7 +2,7 @@
 // See LICENSE file for terms of use.
 
 import { Action } from "./shared/actions";
-import { LAST_FETCH_COMPLETED_AT_STORAGE_KEY } from "./ui/ui-state";;
+import { LAST_FETCH_COMPLETED_AT_STORAGE_KEY as LAST_FETCH_STARTED_AT_STORAGE_KEY } from "./ui/ui-state";;
 import {
     safe_send_message,
     inject_embedded_ui,
@@ -36,6 +36,7 @@ const TTL_COOLDOWN_TIME_MINUTES = 15;
 const FETCH_COOLDOWN_MS = TTL_COOLDOWN_TIME_MINUTES * 60 * 1000;
 const INTERACTION_DEBOUNCE_MS = 2000;
 const SCROLL_SAVE_DEBOUNCE_MS = 300;
+const DEFAULT_DEBOUNCE_MS = 10000
 
 let course_data: CourseData = {};
 let calendar_container: HTMLElement | null = null;
@@ -45,7 +46,10 @@ let interaction_debounce_timer: ReturnType<typeof setTimeout> | undefined;
 let scroll_save_debounce: ReturnType<typeof setTimeout> | undefined;
 
 function fetch_and_store_courses() {
+    if (Date.now() - read_last_fetch_completed_at() < DEFAULT_DEBOUNCE_MS)
     if (fetch_in_flight) return;
+    console.log("Fetching!");
+    localStorage.setItem(LAST_FETCH_STARTED_AT_STORAGE_KEY, Date.now().toString());
     fetch_in_flight = true;
     toggle_fetching_indicator(true);
     safe_send_message({ action: Action.BROADCAST_FETCH_STARTED });
@@ -54,7 +58,6 @@ function fetch_and_store_courses() {
 
 function on_fetch_response(response: unknown) {
     fetch_in_flight = false;
-    localStorage.setItem(LAST_FETCH_COMPLETED_AT_STORAGE_KEY, Date.now().toString());
     toggle_fetching_indicator(false);
     if (!response) return;
     course_data = JSON.parse(JSON.stringify(response));
