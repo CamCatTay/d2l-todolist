@@ -48,7 +48,6 @@ let scroll_save_debounce: ReturnType<typeof setTimeout> | undefined;
 function fetch_and_store_courses() {
     if (Date.now() - read_last_fetch_completed_at() < DEFAULT_DEBOUNCE_MS)
     if (fetch_in_flight) return;
-    console.log("Fetching!");
     localStorage.setItem(LAST_FETCH_STARTED_AT_STORAGE_KEY, Date.now().toString());
     fetch_in_flight = true;
     toggle_fetching_indicator(true);
