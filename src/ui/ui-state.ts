@@ -25,6 +25,7 @@ export const ITEM_TYPES = [
 export const CALENDAR_START_DAYS_BACK_STORAGE_KEY = "spark-calendar-start-days-back";
 export const SHOW_COMPLETED_STORAGE_KEY = "spark-show-completed";
 export const SHOW_ON_START_STORAGE_KEY = "spark-setting-show-on-start";
+export const LAST_FETCH_COMPLETED_AT_STORAGE_KEY = "spark-last-fetch-completed-at";
 // Tab-local, session-scoped (sessionStorage — NOT synced across tabs):
 export const HIDDEN_COURSES_SESSION_KEY = "spark-hidden-courses";
 export const HIDDEN_TYPES_SESSION_KEY = "spark-hidden-types";
@@ -67,6 +68,10 @@ export function truncate_course_name(name: string): string {
     return name.replace(new RegExp(`\\s*(${pattern})\\b.*$`, "i"), "").trim();
 }
 
+export function read_last_fetch_completed_at(): number {
+    return parseInt(localStorage.getItem(LAST_FETCH_COMPLETED_AT_STORAGE_KEY) ?? "0", 10);
+}
+
 // Mutable shared state — a single object so any importing module can read and
 // write properties without getter/setter boilerplate. Initialised once from
 // storage on module load; all later mutations are reflected everywhere.
@@ -76,6 +81,7 @@ export const ui_state = {
     show_on_start: read_enabled_flag(SHOW_ON_START_STORAGE_KEY),
     hidden_course_ids: read_session_set(HIDDEN_COURSES_SESSION_KEY),
     hidden_types: read_session_set(HIDDEN_TYPES_SESSION_KEY),
+    last_fetch_completed_at: read_last_fetch_completed_at(),
     last_fetched_time: null as Date | null,
     last_course_data: {} as CourseData,
     on_refresh: null as (() => void) | null,

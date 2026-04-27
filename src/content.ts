@@ -20,6 +20,7 @@ import {
 import { scroll_to_today } from "./ui/frequency-chart";
 import { build_settings_panel, update_settings_panel } from "./ui/settings-menu";
 import type { CourseData } from "./shared/types";
+import { ui_state } from "./ui/ui-state";
 
 const COURSE_DATA_KEY = "courseData";
 const LAST_FETCHED_KEY = "spark-last-fetched";
@@ -27,7 +28,11 @@ const SETTINGS_VALUE_KEY = "spark-user-settings";
 const SCROLL_POS_SESSION_KEY = "spark-scroll-pos";
 const SPARK_INITIALIZED_FLAG = "__spark_initialized__";
 
-const FETCH_COOLDOWN_MS = 5 * 60 * 1000;
+// Cooldown between time to live fetches. (Mouse movement, Page navigation)
+// Fetches are forced if user clicks refresh button
+const TTL_COOLDOWN_TIME_MINUTES = 15;
+
+const FETCH_COOLDOWN_MS = TTL_COOLDOWN_TIME_MINUTES * 60 * 1000;
 const INTERACTION_DEBOUNCE_MS = 2000;
 const SCROLL_SAVE_DEBOUNCE_MS = 300;
 
@@ -35,7 +40,7 @@ let course_data: CourseData = {};
 let calendar_container: HTMLElement | null = null;
 let fetch_in_flight = false;
 let remote_fetch_in_flight = false;
-let last_fetch_completed_at = 0;
+let last_fetch_completed_at = ui_state.last_fetch_completed_at;
 let interaction_debounce_timer: ReturnType<typeof setTimeout> | undefined;
 let scroll_save_debounce: ReturnType<typeof setTimeout> | undefined;
 
@@ -76,6 +81,7 @@ function is_any_fetch_in_flight() {
 }
 
 function is_fetch_cooldown_active() {
+    console.log("Fetch debounce: ", Date.now() - last_fetch_completed_at, FETCH_COOLDOWN_MS);
     return Date.now() - last_fetch_completed_at < FETCH_COOLDOWN_MS;
 }
 
@@ -168,7 +174,7 @@ function on_page_ready() {
     register_ui_callbacks({ on_refresh: fetch_and_store_courses, on_rerender: rerender_with_cached_data });
     register_smart_fetch_listeners();
     load_initial_cached_data();
-    fetch_and_store_courses();
+    try_smart_fetch();
 }
 
 function reload_open_tabs() {

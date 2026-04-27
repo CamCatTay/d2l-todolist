@@ -13,6 +13,7 @@ import {
     OVERDUE_COLOR,
     CALENDAR_START_DAYS_BACK_STORAGE_KEY,
     SHOW_COMPLETED_STORAGE_KEY,
+    LAST_FETCH_COMPLETED_AT_STORAGE_KEY
 } from "./ui-state";
 import { CalendarCss, FrequencyChartCss, PanelCss, SettingsCss } from "./dom-constants";
 import type { CourseData, CourseShape, ItemShape } from "../shared/types";
@@ -348,6 +349,7 @@ export function update_gui(course_data: CourseData, is_from_cache: boolean = fal
 }
 
 export function set_last_fetched_time(fetch_time: Date): void {
+    localStorage.setItem(LAST_FETCH_COMPLETED_AT_STORAGE_KEY, Date.now().toString());
     ui_state.last_fetched_time = fetch_time;
 }
 
