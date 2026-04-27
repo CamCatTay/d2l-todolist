@@ -13,7 +13,7 @@ import {
 import {
     initialize_gui,
     update_gui,
-    add_data_status_indicator,
+    toggle_fetching_indicator,
     apply_settings,
     set_last_fetched_time,
     register_ui_callbacks,
@@ -45,10 +45,9 @@ let interaction_debounce_timer: ReturnType<typeof setTimeout> | undefined;
 let scroll_save_debounce: ReturnType<typeof setTimeout> | undefined;
 
 function fetch_and_store_courses() {
-    console.log(fetch_in_flight);
     if (fetch_in_flight) return;
     fetch_in_flight = true;
-    add_data_status_indicator(true);
+    toggle_fetching_indicator(true);
     safe_send_message({ action: Action.BROADCAST_FETCH_STARTED });
     safe_send_message({ action: Action.FETCH_COURSES }, on_fetch_response);
 }
@@ -56,6 +55,7 @@ function fetch_and_store_courses() {
 function on_fetch_response(response: unknown) {
     fetch_in_flight = false;
     localStorage.setItem(LAST_FETCH_COMPLETED_AT_STORAGE_KEY, Date.now().toString());
+    toggle_fetching_indicator(false);
     if (!response) return;
     course_data = JSON.parse(JSON.stringify(response));
     const fetched_at = new Date();
@@ -188,7 +188,7 @@ function reload_open_tabs() {
 
 function on_message_fetch_started() {
     remote_fetch_in_flight = true;
-    add_data_status_indicator(true);
+    toggle_fetching_indicator(true);
 }
 
 function on_remote_course_data_loaded(result: { [key: string]: unknown }) {
