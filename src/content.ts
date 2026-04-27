@@ -81,7 +81,6 @@ function is_any_fetch_in_flight() {
 }
 
 function is_fetch_cooldown_active() {
-    console.log("Fetch debounce: ", Date.now() - last_fetch_completed_at, FETCH_COOLDOWN_MS);
     return Date.now() - last_fetch_completed_at < FETCH_COOLDOWN_MS;
 }
 
