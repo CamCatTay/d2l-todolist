@@ -10,6 +10,7 @@
     --regular-active-color: #ebebeb;
     --frequency-bar-background-color: #e8e8e8;
     --not-available-background-color: #f5f5f5;
+    --header-button-hover: #333333;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,9 +23,10 @@
     --scrollbar-color: #585858 #2e2e2e;
     --section-border-color: #575757;
     --regular-hover-color: #2c2c2c;
-    --regular-active-color: #292929;
+    --regular-active-color: #242424;
     --frequency-bar-background-color: #494949;
     --not-available-background-color: #2c2c2c;
+    --header-button-hover: #b4b4b4;
   }
 }
 
@@ -188,7 +190,7 @@ body:has(#spark-widget.hidden) {
 }
 
 .spark-refresh-btn:hover {
-    color: #333;
+    color: var(--header-button-hover);
 }
 
 .spark-refresh-btn.spinning {
@@ -215,7 +217,7 @@ body:has(#spark-widget.hidden) {
 }
 
 .spark-settings-btn:hover {
-    color: #333;
+    color: var(--header-button-hover);
 }
 
 #calendar-container {
@@ -298,7 +300,7 @@ body:has(#spark-widget.hidden) {
 }
 
 .calendar-item:active {
-    background-color: #f0f0f0;
+    background-color: var(--regular-active-color);
 }
 
 .calendar-item.not-yet-available {
@@ -495,12 +497,8 @@ body:has(#spark-widget.hidden) {
     transition: border-color 0.2s ease;
 }
 
-.faq-btn:hover::before {
-    border-color: #555;
-}
-
 .faq-btn:hover {
-    color: #333;
+    color: var(--header-button-hover);
 }
 
 .frequency-chart-container {
