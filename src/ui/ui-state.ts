@@ -2,6 +2,7 @@
 // See LICENSE file for terms of use.
 
 import type { CourseData } from "../shared/types";
+import { SettingsCss } from "./dom-constants";
 
 export const DAYS_IN_WEEK = 7;
 export const CALENDAR_DAYS_BACK_DEFAULT = 7;
@@ -50,8 +51,12 @@ export function read_session_set(key: string): Set<string> {
     }
 }
 
-export function read_enabled_flag(key: string): boolean {
-    return localStorage.getItem(key) !== "false";
+export function read_enabled_flag(key: string, default_value: boolean): boolean {
+    if (default_value == true) {
+        return localStorage.getItem(key) !== "false";
+    } else {
+        return localStorage.getItem(key) === "true";
+    }
 }
 
 export function read_calendar_start_days_back(): number {
@@ -76,10 +81,10 @@ export function read_last_fetch_completed_at(): number {
 // storage on module load; all later mutations are reflected everywhere.
 export const ui_state = {
     calendar_start_days_back: read_calendar_start_days_back(),
-    show_completed_items: read_enabled_flag(SHOW_COMPLETED_STORAGE_KEY),
-    spark_dark_mode: localStorage.getItem(SPARK_DARK_MODE_STORAGE_KEY) ?? false,
-    spark_d2l_dark_mode: localStorage.getItem(SPARK_D2L_DARK_MODE_STORAGE_KEY) ?? false,
-    show_on_start: read_enabled_flag(SHOW_ON_START_STORAGE_KEY),
+    show_completed_items: read_enabled_flag(SHOW_COMPLETED_STORAGE_KEY, true),
+    spark_dark_mode: read_enabled_flag(SPARK_DARK_MODE_STORAGE_KEY, false),
+    spark_d2l_dark_mode: read_enabled_flag(SPARK_D2L_DARK_MODE_STORAGE_KEY, false),
+    show_on_start: read_enabled_flag(SHOW_ON_START_STORAGE_KEY, true),
     hidden_course_ids: read_session_set(HIDDEN_COURSES_SESSION_KEY),
     hidden_types: read_session_set(HIDDEN_TYPES_SESSION_KEY),
     last_fetched_time: null as Date | null,
@@ -89,11 +94,16 @@ export const ui_state = {
 };
 
 function initialize() {
-    if (ui_state.spark_dark_mode) {
-        document.documentElement.classList.add("spark-dark-mode");
+    console.log(ui_state.spark_dark_mode, ui_state.spark_d2l_dark_mode)
+    if (ui_state.spark_dark_mode == true) {
+        document.documentElement.classList.add(SettingsCss.SPARK_DARK_MODE);
+    } else {
+        document.documentElement.classList.remove(SettingsCss.SPARK_DARK_MODE);
     }
-    if (ui_state.spark_d2l_dark_mode) {
-        document.documentElement.classList.add("spark-d2l-dark-mode");
+    if (ui_state.spark_d2l_dark_mode == true) {
+        document.documentElement.classList.add(SettingsCss.SPARK_D2L_DARK_MODE);
+    } else {
+        document.documentElement.classList.remove(SettingsCss.SPARK_DARK_MODE);
     }
 }
 

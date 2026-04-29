@@ -20,6 +20,8 @@ export const SettingsCss = Object.freeze({
     PANEL_ID: "spark-settings-panel",
     PANEL_TITLE: "settings-title",
     SECTION: "settings-section",
+    SPARK_DARK_MODE: "spark-dark-mode",
+    SPARK_D2L_DARK_MODE: "spark-d2l-dark-mode"
 });
 
 export const PanelCss = Object.freeze({

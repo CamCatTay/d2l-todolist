@@ -85,18 +85,24 @@ function on_course_visibility_changed(course_id: string, is_visible: boolean): v
 }
 
 function on_spark_dark_mode_changed(checked: boolean) {
-    document.documentElement.classList.toggle('spark-dark-mode');
-    const isEnabled = document.documentElement.classList.contains('spark-dark-mode');
-    ui_state.spark_dark_mode = isEnabled;
+    if (!checked) {
+        document.documentElement.classList.remove(SettingsCss.SPARK_DARK_MODE);
+    } else {
+        document.documentElement.classList.add(SettingsCss.SPARK_DARK_MODE);
+    }
+    ui_state.spark_dark_mode = checked;
     localStorage.setItem(SPARK_DARK_MODE_STORAGE_KEY, checked.toString());
     broadcast_settings_changed();
     trigger_rerender();
 }
 
 function on_d2l_dark_mode_changed(checked: boolean) {
-    document.documentElement.classList.toggle('spark-d2l-dark-mode');
-    const isEnabled = document.documentElement.classList.contains('spark-d2l-dark-mode');
-    ui_state.spark_d2l_dark_mode = isEnabled;
+    if (!checked) {
+        document.documentElement.classList.remove(SettingsCss.SPARK_D2L_DARK_MODE);
+    } else {
+        document.documentElement.classList.add(SettingsCss.SPARK_D2L_DARK_MODE);
+    }
+    ui_state.spark_d2l_dark_mode = checked;
     localStorage.setItem(SPARK_D2L_DARK_MODE_STORAGE_KEY, checked.toString());
     broadcast_settings_changed();
     trigger_rerender();
@@ -146,7 +152,7 @@ function build_spark_dark_mode_section(): HTMLElement {
     const toggle = create_toggle_setting(
         "Spark Dark Mode",
         "Enables dark mode for the spark side panel.",
-        Boolean(ui_state.spark_dark_mode),
+        ui_state.spark_dark_mode,
         on_spark_dark_mode_changed
     );
     return toggle.section;
@@ -156,7 +162,7 @@ function build_d2l_dark_mode_section(): HTMLElement {
     const toggle = create_toggle_setting(
         "D2L Dark Mode (Experimental)",
         "Enables dark mode for D2L. Still under development, may not function as expected.",
-        Boolean(ui_state.spark_d2l_dark_mode),
+        ui_state.spark_d2l_dark_mode,
         on_d2l_dark_mode_changed
     );
     return toggle.section;
