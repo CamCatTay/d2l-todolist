@@ -91,7 +91,6 @@ function on_spark_dark_mode_changed(checked: boolean) {
     localStorage.setItem(SPARK_DARK_MODE_STORAGE_KEY, checked.toString());
     broadcast_settings_changed();
     trigger_rerender();
-    console.log("spark dark mode!");
 }
 
 function on_d2l_dark_mode_changed(checked: boolean) {
@@ -101,7 +100,6 @@ function on_d2l_dark_mode_changed(checked: boolean) {
     localStorage.setItem(SPARK_D2L_DARK_MODE_STORAGE_KEY, checked.toString());
     broadcast_settings_changed();
     trigger_rerender();
-    console.log("d2l dark mode!");
 }
 
 function build_panel_header(): HTMLElement {
