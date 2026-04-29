@@ -17,6 +17,8 @@ import {
     HIDDEN_TYPES_SESSION_KEY,
     SETTINGS_MIN_DAYS_BACK,
     SETTINGS_MAX_DAYS_BACK,
+    SPARK_DARK_MODE_STORAGE_KEY,
+    SPARK_D2L_DARK_MODE_STORAGE_KEY,
 } from "./ui-state";
 import type { CourseData, CourseShape } from "../shared/types";
 
@@ -82,6 +84,26 @@ function on_course_visibility_changed(course_id: string, is_visible: boolean): v
     trigger_rerender();
 }
 
+function on_spark_dark_mode_changed(checked: boolean) {
+    document.documentElement.classList.toggle('spark-dark-mode');
+    const isEnabled = document.documentElement.classList.contains('spark-dark-mode');
+    ui_state.spark_dark_mode = isEnabled;
+    localStorage.setItem(SPARK_DARK_MODE_STORAGE_KEY, checked.toString());
+    broadcast_settings_changed();
+    trigger_rerender();
+    console.log("spark dark mode!");
+}
+
+function on_d2l_dark_mode_changed(checked: boolean) {
+    document.documentElement.classList.toggle('spark-d2l-dark-mode');
+    const isEnabled = document.documentElement.classList.contains('spark-d2l-dark-mode');
+    ui_state.spark_d2l_dark_mode = isEnabled;
+    localStorage.setItem(SPARK_D2L_DARK_MODE_STORAGE_KEY, checked.toString());
+    broadcast_settings_changed();
+    trigger_rerender();
+    console.log("d2l dark mode!");
+}
+
 function build_panel_header(): HTMLElement {
     const header = document.createElement("div");
     header.className = SettingsCss.PANEL_HEADER;
@@ -120,6 +142,26 @@ function build_days_back_section(): HTMLElement {
     section.appendChild(description);
     section.appendChild(input);
     return section;
+}
+
+function build_spark_dark_mode_section(): HTMLElement {
+    const toggle = create_toggle_setting(
+        "Spark Dark Mode",
+        "Enables dark mode for the spark side panel.",
+        ui_state.spark_dark_mode,
+        on_spark_dark_mode_changed
+    );
+    return toggle.section;
+}
+
+function build_d2l_dark_mode_section(): HTMLElement {
+    const toggle = create_toggle_setting(
+        "D2L Dark Mode (Experimental)",
+        "Enables dark mode for D2L. Still under development, may not function as expected.",
+        ui_state.spark_d2l_dark_mode,
+        on_d2l_dark_mode_changed
+    );
+    return toggle.section;
 }
 
 function build_show_completed_section(): HTMLElement {
@@ -246,6 +288,8 @@ export function build_settings_panel(): HTMLElement {
     body.className = SettingsCss.BODY;
 
     body.appendChild(build_days_back_section());
+    body.appendChild(build_spark_dark_mode_section());
+    body.appendChild(build_d2l_dark_mode_section());
     body.appendChild(build_show_completed_section());
     body.appendChild(build_show_on_start_section());
     body.appendChild(build_types_filter_section());

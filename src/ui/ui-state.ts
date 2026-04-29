@@ -25,6 +25,8 @@ export const ITEM_TYPES = [
 export const CALENDAR_START_DAYS_BACK_STORAGE_KEY = "spark-calendar-start-days-back";
 export const SHOW_COMPLETED_STORAGE_KEY = "spark-show-completed";
 export const SHOW_ON_START_STORAGE_KEY = "spark-setting-show-on-start";
+export const SPARK_DARK_MODE_STORAGE_KEY = "spark-dark-mode";
+export const SPARK_D2L_DARK_MODE_STORAGE_KEY = "spark-d2l-dark-mode";
 // Tab-local, session-scoped (sessionStorage — NOT synced across tabs):
 export const HIDDEN_COURSES_SESSION_KEY = "spark-hidden-courses";
 export const HIDDEN_TYPES_SESSION_KEY = "spark-hidden-types";
@@ -73,6 +75,8 @@ export function truncate_course_name(name: string): string {
 export const ui_state = {
     calendar_start_days_back: read_calendar_start_days_back(),
     show_completed_items: read_enabled_flag(SHOW_COMPLETED_STORAGE_KEY),
+    spark_dark_mode: read_enabled_flag(SPARK_DARK_MODE_STORAGE_KEY),
+    spark_d2l_dark_mode: read_enabled_flag(SPARK_D2L_DARK_MODE_STORAGE_KEY),
     show_on_start: read_enabled_flag(SHOW_ON_START_STORAGE_KEY),
     hidden_course_ids: read_session_set(HIDDEN_COURSES_SESSION_KEY),
     hidden_types: read_session_set(HIDDEN_TYPES_SESSION_KEY),
@@ -81,3 +85,14 @@ export const ui_state = {
     on_refresh: null as (() => void) | null,
     on_rerender: null as (() => void) | null,
 };
+
+function initialize() {
+    if (ui_state.spark_dark_mode) {
+        document.documentElement.classList.add("spark-dark-mode");
+    }
+    if (ui_state.spark_d2l_dark_mode) {
+        document.documentElement.classList.add("spark-d2l-dark-mode");
+    }
+}
+
+initialize()

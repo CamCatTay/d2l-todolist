@@ -1,4 +1,4 @@
-:root.spark-dark-mode {
+:root.spark-d2l-dark-mode {
     filter: invert(1) hue-rotate(180deg) !important;
 
     img, video, [style*="background-image"] {
