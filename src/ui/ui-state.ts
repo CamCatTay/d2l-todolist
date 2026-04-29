@@ -96,6 +96,7 @@ export const ui_state = {
 function initialize() {
     console.log(ui_state.spark_dark_mode, ui_state.spark_d2l_dark_mode)
     if (ui_state.spark_dark_mode == true) {
+        console.log("adding dark mode element");
         document.documentElement.classList.add(SettingsCss.SPARK_DARK_MODE);
     } else {
         document.documentElement.classList.remove(SettingsCss.SPARK_DARK_MODE);
@@ -103,7 +104,7 @@ function initialize() {
     if (ui_state.spark_d2l_dark_mode == true) {
         document.documentElement.classList.add(SettingsCss.SPARK_D2L_DARK_MODE);
     } else {
-        document.documentElement.classList.remove(SettingsCss.SPARK_DARK_MODE);
+        document.documentElement.classList.remove(SettingsCss.SPARK_D2L_DARK_MODE);
     }
 }
 
