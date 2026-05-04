@@ -18,7 +18,7 @@ import {
     SETTINGS_MAX_DAYS_BACK,
     SPARK_DARK_MODE_STORAGE_KEY,
     SPARK_D2L_DARK_MODE_STORAGE_KEY,
-} from "./ui-state";
+} from "./settings";
 import type { CourseData, CourseShape } from "../shared/types";
 import { BROADCAST_SETTINGS_CHANGED } from "../shared/constants/actions";
 

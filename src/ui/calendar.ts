@@ -11,9 +11,7 @@ import {
     DUE_TODAY_COLOR,
     DUE_TOMORROW_COLOR,
     OVERDUE_COLOR,
-    CALENDAR_START_DAYS_BACK_STORAGE_KEY,
-    SHOW_COMPLETED_STORAGE_KEY,
-} from "./ui-state";
+} from "./settings";
 import { CalendarCss, FrequencyChartCss, PanelCss, SettingsCss } from "../shared/constants/ui";
 import type { CourseData, CourseShape, ItemShape } from "../shared/types";
 
@@ -349,10 +347,6 @@ export function update_gui(course_data: CourseData, is_from_cache: boolean = fal
 
     build_calendar_list(items_by_date, start_date, end_date, calendar_container);
     mount_scrollbar_indicator(calendar_container);
-}
-
-export function set_last_fetched_time(fetch_time: Date): void {
-    ui_state.last_fetched_time = fetch_time;
 }
 
 export function register_ui_callbacks({ on_refresh, on_rerender }: { on_refresh: () => void; on_rerender: () => void }): void {

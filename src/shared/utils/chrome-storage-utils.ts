@@ -1,6 +1,6 @@
 type StorageArea = "local" | "session" | "sync";
 
-async function get_storage(key: string, area: StorageArea = "local"): Promise<any> {
+async function chrome_storage_get(key: string, area: StorageArea = "local"): Promise<any> {
     try {
         const result = await chrome.storage[area].get(key);
         return result[key];
@@ -10,7 +10,7 @@ async function get_storage(key: string, area: StorageArea = "local"): Promise<an
     }
 }
 
-async function set_storage(key: string, value: any, area: StorageArea = "local"): Promise<void> {
+async function chrome_storage_set(key: string, value: any, area: StorageArea = "local"): Promise<void> {
     try {
         await chrome.storage[area].set({ [key]: value });
     } catch (error) {
