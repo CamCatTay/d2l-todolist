@@ -18,6 +18,10 @@ const SPARK_INITIALIZED_FLAG = "__spark_initialized__";
 
 const is_d2l_tab = (url?: string) => !!url && url.includes(D2L_URL_FILTER);
 
+// chrome.storage.session is restricted to background only by default
+// set access level allows content scripts to use it
+chrome.storage.session.setAccessLevel({ accessLevel: "TRUSTED_AND_UNTRUSTED_CONTEXTS" });
+
 function handle_extension_installed(details: Record<string, any>): void {
     if (details.reason === "install") {
         chrome.storage.local.set({ "spark-client-id": crypto.randomUUID() });

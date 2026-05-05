@@ -30,7 +30,7 @@ function on_chrome_storage_changed(changes: Record<string, any>, area: "sync" | 
         }
         if (changes[IS_FETCHING]) {
             apply_state_change(IS_FETCHING, changes[IS_FETCHING].newValue);
-            update_fetching_indicator()
+            update_fetching_indicator();
         }
     }
 }
