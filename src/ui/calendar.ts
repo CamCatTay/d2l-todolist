@@ -5,12 +5,7 @@ import { formatTimeFromDate, formatFullDatetime, getDateOnly, formatDateHeader }
 import { getCourseColor, ensureCourseColorsAssigned } from "../shared/utils/color-utils";
 import { create_frequency_chart } from "./frequency-chart";
 import { truncate_course_name } from "../shared/utils/string-utils";
-import {
-    DUE_TODAY_COLOR,
-    DUE_TOMORROW_COLOR,
-    get_setting,
-    OVERDUE_COLOR,
-} from "../core/settings";
+import { DUE_TODAY_COLOR, DUE_TOMORROW_COLOR, get_setting, OVERDUE_COLOR } from "../core/settings";
 import { CalendarCss, FrequencyChartCss, PanelCss } from "../shared/constants/ui";
 import type { CourseData, CourseShape, ItemShape } from "../shared/types";
 import { CALENDAR_DAYS_BACK, HIDDEN_COURSES, HIDDEN_TYPES, SHOW_COMPLETED_ASSIGNMENTS } from "../shared/constants/storage-keys";
@@ -25,7 +20,6 @@ const META_SEPARATOR = "|";
 const COURSE_DOT_SYMBOL = "●";
 const COMPLETED_BADGE_SYMBOL = "✓";
 const INCOMPLETE_DOT_SYMBOL = "•";
-const FETCHING_STATUS_LABEL = " — Fetching...";
 
 interface DateIndexedItems {
     items_by_date: Record<string, Array<{ item: ItemShape; course: CourseShape }>>;
@@ -284,30 +278,7 @@ function mount_scrollbar_indicator(calendar_container: HTMLElement): void {
 }
 
 
-// Panel can load before this exists resulting in no indicator
-// currently no indicator when reloading or switching pages
-export function toggle_fetching_indicator(status: boolean): void {
-
-    const last_fetched_el = document.querySelector(`.${FrequencyChartCss.LAST_FETCHED}`);
-    if (!last_fetched_el) return;
-
-    last_fetched_el.classList.remove(CalendarCss.FETCHING);
-    if (status) {
-        const fetch_status = document.createElement("span");
-        fetch_status.className = CalendarCss.FETCH_STATUS;
-        const label_text = document.createTextNode(FETCHING_STATUS_LABEL);
-        const spinner = document.createElement("span");
-        spinner.className = CalendarCss.FETCH_SPINNER;
-        fetch_status.appendChild(label_text);
-        fetch_status.appendChild(spinner);
-        last_fetched_el.appendChild(fetch_status);
-        last_fetched_el.classList.add(CalendarCss.FETCHING);
-    } else {
-        document.querySelector(`.${CalendarCss.FETCH_STATUS}`)?.remove();
-    }
-}
-
-export function update_gui(course_data: CourseData, is_from_cache: boolean = false): void {
+export function update_calendar(course_data: CourseData): void {
     const calendar_container = document.getElementById(PanelCss.CALENDAR_CONTAINER_ID);
     if (!calendar_container) return;
 
@@ -322,12 +293,6 @@ export function update_gui(course_data: CourseData, is_from_cache: boolean = fal
         create_frequency_chart(calendar_container, items_by_date, preserved_week_offset);
     } catch (e) {
         console.error("Error creating frequency chart (non-fatal):", e);
-    }
-
-    if (is_from_cache) {
-        //Turning this on causes Fetching status indicator to loop
-        //until throttle cooldown is lifted and a fetch can happen
-        //add_data_status_indicator(true);
     }
 
     if (!min_date || !max_date) {
@@ -347,5 +312,5 @@ export function update_gui(course_data: CourseData, is_from_cache: boolean = fal
 
 
 export function initialize_calendar(): void {
-    update_gui({} as CourseData, true);
+    update_calendar({} as CourseData);
 }
